@@ -120,3 +120,7 @@ export interface SessionGroup {
   day: Day | null;
   room: string;
 }
+
+export type Block =
+  | { kind: "single"; paper: Paper }
+  | { kind: "group"; topic: string; papers: Paper[] };
