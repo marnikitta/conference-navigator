@@ -147,14 +147,14 @@ export function qualityPrior(rating: number | null): number {
 // on-topic 6.5s.
 // Tune: 0.0–2.0. Presets: 0.3 topic-first (ratings barely nudge),
 // 0.8 balanced (current), 1.5 quality-first (ratings dominate ties).
-const OPINIONATED_RATING_WEIGHT = 0.8;
+const OPINIONATED_RATING_WEIGHT = 0.5;
 
 // MMR diversification. λ closer to 1 → relevance-dominant (blocky);
 // closer to 0 → diversity-dominant (random-feeling). 0.75 is the
 // sweet spot for "same interest, but don't stack 10 near-duplicates".
 // Tune: 0.50–0.95. Presets: 0.60 exploratory (broad mix),
 // 0.75 balanced (current), 0.90 focused (allows small duplicate stacks).
-const OPINIONATED_LAMBDA = 0.75;
+const OPINIONATED_LAMBDA = 0.80;
 
 // Pool size for MMR. Only the top N by relevance are reordered; the
 // rest fall through unchanged. MMR is O(pick·pool·dim) — increasing
