@@ -20,5 +20,17 @@ export const useSavedStore = defineStore("saved", () => {
     savedIds.value = [...ids];
   }
 
-  return { savedIds, idSet, has, toggle, importIds };
+  function mergeIds(ids: string[]): void {
+    const seen = new Set(savedIds.value);
+    const next = [...savedIds.value];
+    for (const id of ids) {
+      if (!seen.has(id)) {
+        seen.add(id);
+        next.push(id);
+      }
+    }
+    savedIds.value = next;
+  }
+
+  return { savedIds, idSet, has, toggle, importIds, mergeIds };
 });

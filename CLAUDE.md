@@ -112,7 +112,7 @@ mis-resolve the relative path).
 - `rated-papers.json` — array of `RawPaper`. Each record carries:
   `id`, `title`, `abstract`, `authors` (with decoded HTML entities),
   `event_type`, `tier` (always present: `"Oral" | "Spotlight" |
-  "Poster"`), `presentation` (session, room, `poster_position`,
+"Poster"`), `presentation` (session, room, `poster_position`,
   `poster_position_idx`, start/end ISO times), `materials`
   (openreview/code/slides/poster/virtual URLs; `virtual_url` is always
   absolute), `metadata` (`coords`, `topic_id`, `topic` — clustered

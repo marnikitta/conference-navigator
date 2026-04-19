@@ -14,7 +14,3 @@
 - [ ] Make sure I can trust the navigator and it has all orals, keynotes etc
 - [ ] Make rating clickable and open openreview
 - [ ] more pagination by 500 rows
-
-
-
-
