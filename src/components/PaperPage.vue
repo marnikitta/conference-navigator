@@ -43,14 +43,6 @@ const whereLabel = computed(() => {
   return p.poster_pos ? `${p.room} · ${p.poster_pos}` : p.room;
 });
 
-const ratingLabel = computed(() => {
-  const p = paper.value;
-  if (!p || p.rating == null) return "";
-  const reviews =
-    p.ratings && p.ratings.length ? ` · reviews ${p.ratings.join(", ")}` : "";
-  return `${p.rating.toFixed(2)}${reviews}`;
-});
-
 const highRating = computed(
   () => paper.value?.rating != null && paper.value.rating >= 7.5,
 );
@@ -165,9 +157,24 @@ function filterInst(inst: string) {
         </button>
       </div>
       <div v-if="paper.rating != null" class="kv">
-        <div class="k">Rating</div>
+        <div class="k">Review rating</div>
         <div class="v" :class="{ accent: highRating }">
-          {{ ratingLabel }}
+          {{ paper.rating.toFixed(2) }}
+          <template v-if="paper.ratings && paper.ratings.length">
+            · reviews
+            <template v-for="(r, i) in paper.ratings" :key="i">
+              <a
+                v-if="paper.openreview_url"
+                :href="paper.openreview_url"
+                target="_blank"
+                rel="noopener"
+                class="review-link"
+                >{{ r }}<span class="arrow">↗</span></a
+              >
+              <span v-else>{{ r }}</span>
+              <template v-if="i < paper.ratings.length - 1">, </template>
+            </template>
+          </template>
         </div>
       </div>
     </div>

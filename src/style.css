@@ -203,6 +203,12 @@ a { color: inherit; }
   transition: color 0.15s, border-color 0.15s;
 }
 .det-kv .kv .v-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.det-kv .kv .v .review-link {
+  color: inherit; text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: var(--rule); text-decoration-thickness: 1px;
+}
+.det-kv .kv .v .review-link:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.det-kv .kv .v .review-link .arrow { margin-left: 1px; opacity: 0.55; font-size: 11px; }
 
 .det-primary { display: flex; gap: 10px; margin-bottom: 22px; }
 .btn {

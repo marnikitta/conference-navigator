@@ -153,7 +153,9 @@ function close() {
       </div>
 
       <div class="filt-sec">
-        <div class="filt-title">Min rating · {{ minRating.toFixed(1) }}</div>
+        <div class="filt-title">
+          Min review rating · {{ minRating.toFixed(1) }}
+        </div>
         <input
           type="range"
           min="0"

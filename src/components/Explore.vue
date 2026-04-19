@@ -309,7 +309,7 @@ watch(seedPaperId, resetShown);
       <select class="sort-sel" :value="sort" @change="onSort">
         <option value="reco">recommended</option>
         <option v-if="seedPaperId" value="similar">similar to seed</option>
-        <option value="rating">avg rating</option>
+        <option value="rating">review rating</option>
         <option value="time">chronological</option>
         <option value="poster_id">poster ID</option>
         <option value="spotlight">spotlights first</option>
