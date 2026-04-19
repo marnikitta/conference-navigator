@@ -1,12 +1,6 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-import type { Day, Paper, RawPaper } from "@/types";
-
-const DAY_FROM_DATE: Record<string, Day> = {
-  "2026-04-23": "Thu",
-  "2026-04-24": "Fri",
-  "2026-04-25": "Sat",
-};
+import { computed, ref } from "vue";
+import type { DayDef, Paper, RawPaper } from "@/types";
 
 function adaptPaper(raw: RawPaper): Paper {
   const pres = raw.presentation || {};
@@ -16,6 +10,7 @@ function adaptPaper(raw: RawPaper): Paper {
 
   const start = pres.start_time || "";
   const end = pres.end_time || "";
+  const date = start.slice(0, 10);
 
   return {
     id: raw.id,
@@ -32,7 +27,7 @@ function adaptPaper(raw: RawPaper): Paper {
     room: pres.room || "",
     poster_pos: pres.poster_position || null,
     poster_idx: pres.poster_position_idx ?? null,
-    day: DAY_FROM_DATE[start.slice(0, 10)] || null,
+    day: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     start: start.slice(11, 16),
     end: end.slice(11, 16),
     rating: or ? or.avg_rating : null,
@@ -42,6 +37,24 @@ function adaptPaper(raw: RawPaper): Paper {
     code_url: mats.code_url || null,
     slides_url: mats.slides_url || null,
     poster_image_url: mats.poster_image_url || null,
+  };
+}
+
+function buildDayDef(date: string): DayDef {
+  // Use UTC so the date string doesn't drift with the user's local timezone.
+  const d = new Date(date + "T00:00:00Z");
+  return {
+    date,
+    short: d.toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "UTC",
+    }),
+    long: d.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" }),
+    pretty: d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }),
   };
 }
 
@@ -68,11 +81,23 @@ export const usePapersStore = defineStore("papers", () => {
   const loaded = ref(false);
   const loadError = ref<string | null>(null);
 
+  const dayDefs = computed<DayDef[]>(() => {
+    const dates = new Set<string>();
+    for (const p of papers.value) if (p.day) dates.add(p.day);
+    return [...dates].sort().map(buildDayDef);
+  });
+
+  function dayDef(date: string | null | undefined): DayDef | null {
+    if (!date) return null;
+    return dayDefs.value.find((d) => d.date === date) || null;
+  }
+
   async function load() {
     try {
+      const base = import.meta.env.BASE_URL;
       const [papersRes, embRes] = await Promise.all([
-        fetch("data/rated-papers.json"),
-        fetch("data/embeddings.json"),
+        fetch(`${base}data/rated-papers.json`),
+        fetch(`${base}data/embeddings.json`),
       ]);
       if (!papersRes.ok) throw new Error(`papers HTTP ${papersRes.status}`);
       if (!embRes.ok) throw new Error(`embeddings HTTP ${embRes.status}`);
@@ -94,5 +119,14 @@ export const usePapersStore = defineStore("papers", () => {
     return embeddings.value.get(paper.id) || null;
   }
 
-  return { papers, embeddings, loaded, loadError, load, vecFor };
+  return {
+    papers,
+    embeddings,
+    loaded,
+    loadError,
+    dayDefs,
+    dayDef,
+    load,
+    vecFor,
+  };
 });

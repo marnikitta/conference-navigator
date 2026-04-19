@@ -1,4 +1,4 @@
-import type { Day, Paper, SessionGroup, Tier } from "@/types";
+import type { Paper, SessionGroup, Tier } from "@/types";
 
 export function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
@@ -43,28 +43,6 @@ export function uniqueSessions(papers: Paper[]): string[] {
   const s = new Set<string>();
   for (const p of papers) if (p.session) s.add(p.session);
   return Array.from(s).sort();
-}
-
-export const DAY_LABEL: Record<Day, string> = {
-  Thu: "Thursday",
-  Fri: "Friday",
-  Sat: "Saturday",
-};
-
-export const DAY_DATE: Record<Day, string> = {
-  Thu: "Apr 23",
-  Fri: "Apr 24",
-  Sat: "Apr 25",
-};
-
-export function dayLabel(d: Day | string | null | undefined): string {
-  if (!d) return "";
-  return (DAY_LABEL as Record<string, string>)[d] || d;
-}
-
-export function dayDate(d: Day | string | null | undefined): string {
-  if (!d) return "";
-  return (DAY_DATE as Record<string, string>)[d] || "";
 }
 
 export function tierText(paper: Paper): string {

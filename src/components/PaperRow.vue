@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useUiStore } from "@/stores/ui";
+import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import { tierText, tierClass } from "@/composables/usePapers";
 import type { Paper } from "@/types";
@@ -8,7 +9,12 @@ import type { Paper } from "@/types";
 const props = defineProps<{ paper: Paper }>();
 
 const ui = useUiStore();
+const papersStore = usePapersStore();
 const saved = useSavedStore();
+
+const dayShort = computed(
+  () => papersStore.dayDef(props.paper.day)?.short || "",
+);
 
 const isSaved = computed(() => saved.has(props.paper.id));
 const tierLabel = computed(() => tierText(props.paper));
@@ -60,7 +66,7 @@ function toggle(e: MouseEvent) {
         </template>
         <span class="tier" :class="tierCls">{{ tierLabel }}</span>
         <span class="dot">·</span>
-        <span v-if="paper.day">{{ paper.day }} {{ paper.start }}</span>
+        <span v-if="paper.day">{{ dayShort }} {{ paper.start }}</span>
         <template v-if="locationLabel">
           <span class="dot">·</span>
           <span :class="{ 'poster-pos': !!paper.poster_pos }">

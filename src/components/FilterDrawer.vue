@@ -2,13 +2,13 @@
 import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
+import { usePapersStore } from "@/stores/papers";
 import {
   uniqueClusters,
   uniqueInsts,
   uniqueSessions,
-  dayDate,
 } from "@/composables/usePapers";
-import type { Day, Filters, Paper } from "@/types";
+import type { Filters, Paper } from "@/types";
 
 const props = defineProps<{
   papers: Paper[];
@@ -16,9 +16,10 @@ const props = defineProps<{
 }>();
 
 const ui = useUiStore();
+const papersStore = usePapersStore();
 const { filters } = storeToRefs(ui);
+const { dayDefs } = storeToRefs(papersStore);
 
-const DAYS: Day[] = ["Thu", "Fri", "Sat"];
 const EVENT_TYPES = [
   "Poster",
   "Oral",
@@ -26,7 +27,6 @@ const EVENT_TYPES = [
   "Journal Track Poster",
 ];
 
-const dayLabels = DAYS.map((d) => `${d} · ${dayDate(d)}`);
 const clusters = computed(() => uniqueClusters(props.papers));
 const insts = computed(() => uniqueInsts(props.papers));
 const sessions = computed(() => uniqueSessions(props.papers));
@@ -81,13 +81,13 @@ function close() {
         <div class="filt-title">Day</div>
         <div class="filt-opts">
           <button
-            v-for="(d, i) in DAYS"
-            :key="d"
+            v-for="def in dayDefs"
+            :key="def.date"
             class="filt-opt"
-            :class="{ on: isOn('days', d) }"
-            @click="toggleOpt('days', d)"
+            :class="{ on: isOn('days', def.date) }"
+            @click="toggleOpt('days', def.date)"
           >
-            {{ dayLabels[i] }}
+            {{ def.short }} · {{ def.pretty }}
           </button>
         </div>
       </div>

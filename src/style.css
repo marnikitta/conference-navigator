@@ -166,34 +166,20 @@ a { color: inherit; }
 
 .paper-row .poster-pos { font-variant-numeric: tabular-nums; color: var(--ink-2); }
 
-/* Detail sheet */
+/* Filter drawer backdrop (dims the list while the drawer is open) */
 .sheet-overlay {
   position: fixed; inset: 0; background: rgba(26, 26, 26, 0.2);
   z-index: 90; animation: fadein 0.15s ease;
 }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
-.sheet {
-  position: fixed; z-index: 100; background: var(--bg);
-  top: 0; right: 0;
-  height: 100vh;
-  height: 100dvh;
-  width: min(560px, 100%);
-  display: flex; flex-direction: column;
-  animation: slidein 0.22s cubic-bezier(.2, .7, .2, 1);
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.06);
-}
-@keyframes slidein {
-  from { transform: translateX(20px); opacity: 0; }
-  to { transform: none; opacity: 1; }
-}
-.sheet-head {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 14px 20px;
+
+/* Full-page views (paper detail, export). Fills the remaining flex space
+   under the topbar/tabs and scrolls independently. */
+.page { flex: 1; overflow-y: auto; padding: 14px 24px 60px; }
+.page-head {
   font-size: 12px; color: var(--muted);
+  padding-bottom: 8px;
 }
-.sheet-head .close { font-size: 22px; color: var(--muted); line-height: 1; }
-.sheet-head .close:hover { color: var(--ink); }
-.sheet-body { flex: 1; overflow-y: auto; padding: 4px 24px 60px; }
 .det-title {
   font-size: 24px; line-height: 1.25; letter-spacing: -0.015em; font-weight: 600;
   color: var(--ink); margin: 4px 0 14px; text-wrap: pretty;
@@ -398,7 +384,7 @@ a { color: inherit; }
 /* Print — schedule only */
 @media print {
   body, html, .app { background: #fff; color: #000; height: auto; overflow: visible; }
-  .topbar, .tabs, .filter-drawer, .sheet, .sheet-overlay, .controls, .day-tabs,
+  .topbar, .tabs, .filter-drawer, .sheet-overlay, .controls, .day-tabs,
   .tab, .sched-tools { display: none !important; }
   .sched, .sched-body { overflow: visible; display: block; padding: 0; }
   .sess-head {
@@ -418,11 +404,10 @@ a { color: inherit; }
 
 /* Mobile */
 @media (max-width: 720px) {
-  .sheet { width: 100%; }
   .filter-drawer { width: 100%; }
   .paper-row { grid-template-columns: 1fr auto; gap: 10px; }
   .topbar { padding: 14px 18px 8px; }
-  .tabs, .controls, .feed, .day-tabs, .sched-body {
+  .tabs, .controls, .feed, .day-tabs, .sched-body, .page {
     padding-left: 18px; padding-right: 18px;
   }
   .tabs { padding-bottom: 0; }

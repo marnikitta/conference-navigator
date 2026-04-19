@@ -8,7 +8,19 @@ export type Sort =
   | "poster_id"
   | "spotlight";
 
-export type Day = "Thu" | "Fri" | "Sat";
+/** ISO date string, e.g. "2026-04-24". Inferred from paper data at load time. */
+export type Day = string;
+
+export interface DayDef {
+  /** ISO date "YYYY-MM-DD" */
+  date: Day;
+  /** "Fri" */
+  short: string;
+  /** "Friday" */
+  long: string;
+  /** "Apr 24" */
+  pretty: string;
+}
 
 export type Tier = "Oral" | "Spotlight" | "Poster";
 
