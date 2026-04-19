@@ -18,7 +18,7 @@ import PaperRow from "./PaperRow.vue";
 import FilterDrawer from "./FilterDrawer.vue";
 
 const PAGE = 500;
-const PAGE_BLOCKS = 80;
+const PAGE_BLOCKS = 200;
 
 const ui = useUiStore();
 const papersStore = usePapersStore();
