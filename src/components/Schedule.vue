@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, watchEffect } from "vue";
+
+defineOptions({ name: "Schedule" });
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";

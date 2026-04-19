@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onActivated, ref, watch } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
+
+defineOptions({ name: "Explore" });
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
@@ -224,10 +227,25 @@ function showMore() {
   shown.value += PAGE;
 }
 
-watch(filters, () => (shown.value = PAGE), { deep: true });
-watch(sort, () => (shown.value = PAGE));
-watch(query, () => (shown.value = PAGE));
-watch(seedPaperId, () => (shown.value = PAGE));
+// When Explore is cached by <keep-alive> and the user navigates to
+// /paper/:id, Pinia's route-derived filters/query still update, which
+// would re-trigger these watchers and reset `shown` to 50 — wiping the
+// pagination state the user expects back on return. Gate the reset so
+// it fires only while Explore is the active route.
+let routeActive = true;
+onBeforeRouteLeave(() => {
+  routeActive = false;
+});
+onActivated(() => {
+  routeActive = true;
+});
+const resetShown = () => {
+  if (routeActive) shown.value = PAGE;
+};
+watch(filters, resetShown, { deep: true });
+watch(sort, resetShown);
+watch(query, resetShown);
+watch(seedPaperId, resetShown);
 </script>
 
 <template>
