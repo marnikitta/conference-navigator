@@ -8,7 +8,7 @@ const ui = useUiStore();
   <div class="topbar">
     <div class="brand">
       <span class="mark">Navigator</span>
-      <span class="sub">ICLR 2026 · Vancouver</span>
+      <span class="sub">ICLR 2026 · Rio de Janeiro</span>
     </div>
     <button class="topbar-link" @click="ui.openExport">Export / Import</button>
   </div>
