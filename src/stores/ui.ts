@@ -23,6 +23,7 @@ const FILTER_CODECS: FilterCodec<keyof Filters>[] = [
   { key: "spotlightOnly", urlKey: "spotlight", kind: "bool" },
   { key: "minRating", urlKey: "minRating", kind: "number" },
   { key: "savedOnly", urlKey: "saved", kind: "bool" },
+  { key: "hideSaved", urlKey: "hideSaved", kind: "bool" },
 ];
 
 const FILTER_URL_KEYS = new Set(FILTER_CODECS.map((c) => c.urlKey));

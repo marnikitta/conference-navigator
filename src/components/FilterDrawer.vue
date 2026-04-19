@@ -60,6 +60,16 @@ function onRatingInput(e: Event) {
   setKey("minRating", v);
 }
 
+function toggleSavedOnly() {
+  const on = !filters.value.savedOnly;
+  ui.setFilters({ ...filters.value, savedOnly: on, hideSaved: false });
+}
+
+function toggleHideSaved() {
+  const on = !filters.value.hideSaved;
+  ui.setFilters({ ...filters.value, hideSaved: on, savedOnly: false });
+}
+
 function reset() {
   ui.setFilters({});
 }
@@ -136,14 +146,21 @@ function close() {
       </div>
 
       <div class="filt-sec">
-        <div class="filt-title">Saved only ({{ savedCount }})</div>
+        <div class="filt-title">Saved ({{ savedCount }})</div>
         <div class="filt-opts">
           <button
             class="filt-opt"
             :class="{ on: filters.savedOnly }"
-            @click="setKey('savedOnly', !filters.savedOnly)"
+            @click="toggleSavedOnly"
           >
-            {{ filters.savedOnly ? "✓ On" : "Off" }}
+            {{ filters.savedOnly ? "✓ Saved only" : "Saved only" }}
+          </button>
+          <button
+            class="filt-opt"
+            :class="{ on: filters.hideSaved }"
+            @click="toggleHideSaved"
+          >
+            {{ filters.hideSaved ? "✓ Hide saved" : "Hide saved" }}
           </button>
         </div>
       </div>

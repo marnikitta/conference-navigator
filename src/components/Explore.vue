@@ -69,6 +69,7 @@ const filtered = computed<Paper[]>(() => {
     if (f.minRating && (p.rating == null || p.rating < f.minRating))
       return false;
     if (f.savedOnly && !savedIds.value.has(p.id)) return false;
+    if (f.hideSaved && savedIds.value.has(p.id)) return false;
     if (
       f.clusters?.length &&
       (!p.topic_cluster || !f.clusters.includes(p.topic_cluster))
@@ -185,6 +186,12 @@ const chips = computed<Chip[]>(() => {
       label: "Saved only",
       rm: () => ui.setFilters({ ...f, savedOnly: false }),
     });
+  if (f.hideSaved)
+    out.push({
+      key: "hs",
+      label: "Hide saved",
+      rm: () => ui.setFilters({ ...f, hideSaved: false }),
+    });
   return out;
 });
 
@@ -250,17 +257,6 @@ watch(seedPaperId, resetShown);
 
 <template>
   <div class="controls">
-    <div v-if="seedChip" class="chip-row">
-      <button class="chip on" @click="clearSeed">
-        {{ seedChip }} <span class="x">×</span>
-      </button>
-    </div>
-    <div v-if="chips.length" class="chip-row">
-      <button v-for="c in chips" :key="c.key" class="chip on" @click="c.rm">
-        {{ c.label }} <span class="x">×</span>
-      </button>
-      <button class="chip" @click="clearAll">clear all</button>
-    </div>
     <div class="ctrl-row">
       <div class="search">
         <span class="icon">⌕</span>
@@ -274,6 +270,17 @@ watch(seedPaperId, resetShown);
       <button class="pill" :class="{ on: filterCount }" @click="openFilters">
         Filters<template v-if="filterCount"> · {{ filterCount }}</template>
       </button>
+    </div>
+    <div v-if="seedChip" class="chip-row">
+      <button class="chip on" @click="clearSeed">
+        {{ seedChip }} <span class="x">×</span>
+      </button>
+    </div>
+    <div v-if="chips.length" class="chip-row">
+      <button v-for="c in chips" :key="c.key" class="chip on" @click="c.rm">
+        {{ c.label }} <span class="x">×</span>
+      </button>
+      <button class="chip" @click="clearAll">clear all</button>
     </div>
     <div class="ctrl-row">
       <span class="count-txt">{{ sorted.length }} papers</span>
