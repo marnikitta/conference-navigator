@@ -2,11 +2,26 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { DayDef, Paper, RawPaper } from "@/types";
 
+function mean(xs: number[]): number {
+  let s = 0;
+  for (const x of xs) s += x;
+  return s / xs.length;
+}
+
+function parsePosterIdx(pos: string | null | undefined): number | null {
+  if (!pos) return null;
+  const m = pos.match(/(\d+)\s*$/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 function adaptPaper(raw: RawPaper): Paper {
   const pres = raw.presentation || {};
   const mats = raw.materials || {};
   const or = raw.openreview || null;
   const meta = raw.metadata || {};
+  const ratings = or?.ratings ?? [];
 
   const start = pres.start_time || "";
   const end = pres.end_time || "";
@@ -26,12 +41,14 @@ function adaptPaper(raw: RawPaper): Paper {
     session: pres.session || null,
     room: pres.room || "",
     poster_pos: pres.poster_position || null,
-    poster_idx: pres.poster_position_idx ?? null,
+    poster_idx: parsePosterIdx(pres.poster_position),
     day: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     start: start.slice(11, 16),
     end: end.slice(11, 16),
-    rating: or ? or.avg_rating : null,
-    ratings: or ? or.ratings : [],
+    rating: ratings.length ? mean(ratings) : null,
+    ratings,
+    tldr: or?.tldr ?? null,
+    keywords: or?.keywords ?? [],
     openreview_url: mats.openreview_url || null,
     virtual_url: mats.virtual_url || null,
     code_url: mats.code_url || null,
@@ -97,7 +114,7 @@ export const usePapersStore = defineStore("papers", () => {
       const base = import.meta.env.BASE_URL;
       const v = __DATA_VERSION__;
       const [papersRes, embRes] = await Promise.all([
-        fetch(`${base}data/rated-papers.json?v=${v}`),
+        fetch(`${base}data/papers.json?v=${v}`),
         fetch(`${base}data/embeddings.json?v=${v}`),
       ]);
       if (!papersRes.ok) throw new Error(`papers HTTP ${papersRes.status}`);

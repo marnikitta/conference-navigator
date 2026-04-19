@@ -548,6 +548,29 @@ a {
   color: var(--muted);
   margin: 4px 0 10px;
 }
+.det-tldr {
+  font-size: 14px;
+  line-height: 1.55;
+  font-style: italic;
+  color: var(--ink-2);
+  border-left: 2px solid var(--rule);
+  padding-left: 12px;
+  margin: 4px 0 18px;
+  text-wrap: pretty;
+}
+.det-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 22px;
+}
+.det-keywords .kw {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+}
 .det-abstract {
   font-size: 14px;
   line-height: 1.65;

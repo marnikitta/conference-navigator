@@ -33,7 +33,6 @@ export interface RawPresentation {
   session?: string | null;
   room?: string;
   poster_position?: string | null;
-  poster_position_idx?: number | null;
   start_time?: string;
   end_time?: string;
 }
@@ -47,14 +46,12 @@ export interface RawMaterials {
 }
 
 export interface RawOpenreview {
-  tier: Tier;
-  avg_rating: number;
-  avg_confidence: number;
+  tldr?: string | null;
+  keywords?: string[];
   ratings: number[];
 }
 
 export interface RawMetadata {
-  coords?: [number, number];
   topic_id?: number;
   topic?: string | null;
 }
@@ -94,6 +91,8 @@ export interface Paper {
   end: string;
   rating: number | null;
   ratings: number[];
+  tldr: string | null;
+  keywords: string[];
   openreview_url: string | null;
   virtual_url: string | null;
   code_url: string | null;

@@ -50,7 +50,7 @@ src/
     PaperRow.vue  FilterDrawer.vue  PaperPage.vue  ExportPage.vue
   assets/fonts/       Figtree woff2 (referenced from style.css; Vite hashes)
 public/
-  data/               rated-papers.json, embeddings.json (copied verbatim to dist/)
+  data/               papers.json, embeddings.json (copied verbatim to dist/)
 docs/frontend.md      styleguide
 dist/                 build output (gitignored)
 ```
@@ -105,37 +105,40 @@ from the URL + static data on each load.
 
 Two static JSON files under `public/data/` (copied verbatim to
 `dist/data/` on build; the app fetches
-`${import.meta.env.BASE_URL}data/rated-papers.json` and
+`${import.meta.env.BASE_URL}data/papers.json` and
 `…data/embeddings.json` — absolute so history-mode deep routes don't
-mis-resolve the relative path).
+mis-resolve the relative path). The preprocessor writes
+`clustered-papers.json` on its side and the Makefile's `precompute`
+target copies it here as `papers.json`.
 
-- `rated-papers.json` — array of `RawPaper`. Each record carries:
+- `papers.json` — array of `RawPaper`. Each record carries:
   `id`, `title`, `abstract`, `authors` (with decoded HTML entities),
   `event_type`, `tier` (always present: `"Oral" | "Spotlight" |
 "Poster"`), `presentation` (session, room, `poster_position`,
-  `poster_position_idx`, start/end ISO times), `materials`
+  start/end ISO times — no pre-parsed int, `adaptPaper` pulls the
+  trailing digits off `poster_position`), `materials`
   (openreview/code/slides/poster/virtual URLs; `virtual_url` is always
-  absolute), `metadata` (`coords`, `topic_id`, `topic` — clustered
-  topic name, `null` for HDBSCAN noise), and `openreview`
-  (`avg_rating`, `avg_confidence`, `ratings: number[]`, nullable).
+  absolute), `metadata` (`topic_id`, `topic` — clustered topic name),
+  and `openreview` (`tldr: string | null`, `keywords: string[]`,
+  `ratings: number[]`, nullable — the pipeline also ships other
+  per-reviewer score arrays that we ignore).
 - `embeddings.json` — `{paper_id: number[]}`; 128-dim vectors,
   re-normalized on load.
 
 Invariants:
 
-- `metadata.coords` is in roughly `[-1, 1]` with aspect preserved.
-  **Currently unused by the app** — present in the data but not
-  rendered anywhere. Don't assume a visualization exists; adding one
-  is net-new work.
-- `metadata.topic_id === -1` means HDBSCAN noise; the pipeline emits
-  `metadata.topic = null` in that case. Frontend renders it as "no
-  topic", and filter chips hide the bucket.
+- `metadata.topic` is always a named cluster (HDBSCAN noise points are
+  reassigned to their nearest cluster — no null/Unclassified bucket).
 - `openreview` is `null` for Journal Track / papers without an
-  OpenReview URL; `tier` is still present because the pipeline falls
-  back to the raw `decision` string.
-- `presentation.poster_position` is the raw string (e.g.
-  `"P3-#1224"`); `poster_position_idx` is the trailing int.
-- Oral papers appear **twice** in `rated-papers.json` — once as the
+  OpenReview URL; `tier` sits on the paper (not under `openreview`)
+  and is always populated.
+- `openreview.avg_rating` / `avg_confidence` no longer ship. The mean
+  is computed from `openreview.ratings` in `adaptPaper` and exposed as
+  `Paper.rating`.
+- `presentation.poster_position` is the raw string (e.g. `"P3-#1224"`);
+  `Paper.poster_idx` is parsed from its trailing digits by
+  `adaptPaper`.
+- Oral papers appear **twice** in `papers.json` — once as the
   Oral event (usually on an earlier day), once as the Poster sibling
   with the same title but different `id`. This is intentional: both
   belong on the walking-the-hall schedule. There is no frontend

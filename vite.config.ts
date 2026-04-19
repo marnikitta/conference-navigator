@@ -12,7 +12,7 @@ function hashFile(path: string): string {
 }
 
 const dataVersion =
-  hashFile("public/data/rated-papers.json") +
+  hashFile("public/data/papers.json") +
   "-" +
   hashFile("public/data/embeddings.json");
 

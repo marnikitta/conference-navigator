@@ -167,6 +167,12 @@ function toggle() {
       </button>
     </div>
 
+    <div v-if="paper.tldr" class="det-tldr">{{ paper.tldr }}</div>
+
+    <div v-if="paper.keywords.length" class="det-keywords">
+      <span v-for="kw in paper.keywords" :key="kw" class="kw">{{ kw }}</span>
+    </div>
+
     <div v-if="paper.abstract" class="det-abstract">
       {{ paper.abstract }}
     </div>
