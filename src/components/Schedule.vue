@@ -64,6 +64,14 @@ function timeLabelOf(group: SessionGroup): string {
 function doPrint() {
   window.print();
 }
+
+function openSessionInExplore(sess: SessionGroup) {
+  const patch: { days?: Day[]; sessions: string[] } = {
+    sessions: [sess.session],
+  };
+  if (sess.day) patch.days = [sess.day];
+  ui.applyExploreFilter(patch);
+}
 </script>
 
 <template>
@@ -108,7 +116,13 @@ function doPrint() {
           <div v-for="sess in sessions" :key="sess.session" class="sess-block">
             <div class="sess-head">
               <div>
-                <div class="sess-name">{{ sess.session }}</div>
+                <button
+                  type="button"
+                  class="sess-name sess-name-link"
+                  @click="openSessionInExplore(sess)"
+                >
+                  {{ sess.session }}
+                </button>
                 <div class="sess-time">{{ timeLabelOf(sess) }}</div>
               </div>
               <div class="sess-counts">{{ sess.papers.length }}</div>

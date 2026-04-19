@@ -88,6 +88,41 @@ function close() {
     </div>
     <div class="drawer-body">
       <div class="filt-sec">
+        <div class="filt-title">Saved ({{ savedCount }})</div>
+        <div class="filt-opts">
+          <button
+            class="filt-opt"
+            :class="{ on: filters.savedOnly }"
+            @click="toggleSavedOnly"
+          >
+            {{ filters.savedOnly ? "✓ Saved only" : "Saved only" }}
+          </button>
+          <button
+            class="filt-opt"
+            :class="{ on: filters.hideSaved }"
+            @click="toggleHideSaved"
+          >
+            {{ filters.hideSaved ? "✓ Hide saved" : "Hide saved" }}
+          </button>
+        </div>
+      </div>
+
+      <div class="filt-sec">
+        <div class="filt-title">Event type</div>
+        <div class="filt-opts">
+          <button
+            v-for="t in EVENT_TYPES"
+            :key="t"
+            class="filt-opt"
+            :class="{ on: isOn('eventTypes', t) }"
+            @click="toggleOpt('eventTypes', t)"
+          >
+            {{ t }}
+          </button>
+        </div>
+      </div>
+
+      <div class="filt-sec">
         <div class="filt-title">Day</div>
         <div class="filt-opts">
           <button
@@ -118,21 +153,6 @@ function close() {
       </div>
 
       <div class="filt-sec">
-        <div class="filt-title">Event type</div>
-        <div class="filt-opts">
-          <button
-            v-for="t in EVENT_TYPES"
-            :key="t"
-            class="filt-opt"
-            :class="{ on: isOn('eventTypes', t) }"
-            @click="toggleOpt('eventTypes', t)"
-          >
-            {{ t }}
-          </button>
-        </div>
-      </div>
-
-      <div class="filt-sec">
         <div class="filt-title">Min rating · {{ minRating.toFixed(1) }}</div>
         <input
           type="range"
@@ -143,26 +163,6 @@ function close() {
           class="slider"
           @input="onRatingInput"
         />
-      </div>
-
-      <div class="filt-sec">
-        <div class="filt-title">Saved ({{ savedCount }})</div>
-        <div class="filt-opts">
-          <button
-            class="filt-opt"
-            :class="{ on: filters.savedOnly }"
-            @click="toggleSavedOnly"
-          >
-            {{ filters.savedOnly ? "✓ Saved only" : "Saved only" }}
-          </button>
-          <button
-            class="filt-opt"
-            :class="{ on: filters.hideSaved }"
-            @click="toggleHideSaved"
-          >
-            {{ filters.hideSaved ? "✓ Hide saved" : "Hide saved" }}
-          </button>
-        </div>
       </div>
 
       <div class="filt-sec">
