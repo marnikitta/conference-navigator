@@ -9,7 +9,11 @@ import {
   uniqueInsts,
   uniqueSessions,
 } from "@/composables/usePapers";
-import { buildRankingContext, centroid } from "@/composables/useSimilarity";
+import {
+  buildRankingContext,
+  centroid,
+  collectSavedVecs,
+} from "@/composables/useSimilarity";
 import type { Filters, Paper } from "@/types";
 
 const props = defineProps<{
@@ -75,15 +79,15 @@ const instCounts = computed<Record<string, number>>(() => {
 
 // Same strategy as Explore's reco sort (see RANKING_STRATEGY in
 // useSimilarity.ts) so filter order stays consistent with the feed.
-const rankCtx = computed(() => {
-  const vecs: Float32Array[] = [];
-  for (const p of props.papers) {
-    if (!savedIds.value.has(p.id)) continue;
-    const v = papersStore.vecFor(p);
-    if (v) vecs.push(v);
-  }
-  return buildRankingContext(vecs);
-});
+const rankCtx = computed(() =>
+  buildRankingContext(
+    collectSavedVecs(
+      props.papers,
+      (id) => savedIds.value.has(id),
+      (p) => papersStore.vecFor(p),
+    ),
+  ),
+);
 
 const topicCentroids = computed<Record<string, Float32Array>>(() => {
   const buckets: Record<string, Float32Array[]> = {};

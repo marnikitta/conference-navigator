@@ -2,10 +2,10 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { storeToRefs } from "pinia";
-import { useUiStore } from "@/stores/ui";
+import { exploreUrl, useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
-import { topKSimilar } from "@/composables/useSimilarity";
+import { topKSimilar, type SimilarHit } from "@/composables/useSimilarity";
 import { tierText } from "@/composables/usePapers";
 import type { Paper } from "@/types";
 
@@ -47,23 +47,12 @@ const highRating = computed(
   () => paper.value?.rating != null && paper.value.rating >= 7.5,
 );
 
-interface SimilarRow extends Paper {
-  _score: number;
-}
-
-const similar = computed<SimilarRow[]>(() => {
+const similar = computed<SimilarHit[]>(() => {
   const p = paper.value;
   if (!p) return [];
   const seed = papersStore.vecFor(p);
   if (!seed) return [];
-  const top = topKSimilar(
-    papers.value,
-    seed,
-    (x) => papersStore.vecFor(x),
-    5,
-    p.id,
-  );
-  return top.map((t) => ({ ...t.paper, _score: t.score }));
+  return topKSimilar(papers.value, seed, (x) => papersStore.vecFor(x), 5, p.id);
 });
 
 function toggle() {
@@ -91,7 +80,7 @@ function toggle() {
           v-if="a.inst"
           class="a-inst a-inst-link"
           title="Filter by this institution"
-          :to="{ path: '/', query: { inst: a.inst } }"
+          :to="exploreUrl({ insts: [a.inst] })"
         >
           {{ a.inst }}
         </router-link>
@@ -100,12 +89,12 @@ function toggle() {
     </div>
 
     <div class="det-kv">
-      <div v-if="whenLabel" class="kv">
+      <div v-if="whenLabel && paper.day" class="kv">
         <div class="k">When</div>
         <router-link
           class="v v-link"
           title="Open in Explore"
-          :to="{ path: '/', query: { day: paper.day } }"
+          :to="exploreUrl({ days: [paper.day] })"
         >
           {{ whenLabel }}
         </router-link>
@@ -116,7 +105,7 @@ function toggle() {
           v-if="paper.session"
           class="v v-link"
           title="Open in Explore"
-          :to="{ path: '/', query: { session: paper.session } }"
+          :to="exploreUrl({ sessions: [paper.session] })"
         >
           {{ whereLabel }}
         </router-link>
@@ -127,7 +116,7 @@ function toggle() {
         <router-link
           class="v v-link"
           title="Open in Explore"
-          :to="{ path: '/', query: { session: paper.session } }"
+          :to="exploreUrl({ sessions: [paper.session] })"
         >
           {{ paper.session }}
         </router-link>
@@ -137,7 +126,7 @@ function toggle() {
         <router-link
           class="v v-link"
           title="Open in Explore"
-          :to="{ path: '/', query: { cluster: paper.topic_cluster } }"
+          :to="exploreUrl({ clusters: [paper.topic_cluster] })"
         >
           {{ paper.topic_cluster }}
         </router-link>
@@ -233,26 +222,26 @@ function toggle() {
     <template v-if="similar.length">
       <div class="det-section-title">Similar papers</div>
       <router-link
-        v-for="s in similar"
-        :key="s.id"
+        v-for="hit in similar"
+        :key="hit.paper.id"
         class="sim-row"
-        :to="`/paper/${s.id}`"
+        :to="`/paper/${hit.paper.id}`"
       >
         <div>
-          <div class="sim-title">{{ s.title }}</div>
+          <div class="sim-title">{{ hit.paper.title }}</div>
           <div class="sim-meta">
-            {{ tierText(s) }}
-            <template v-if="s.day">
+            {{ tierText(hit.paper) }}
+            <template v-if="hit.paper.day">
               ·
-              {{ papersStore.dayDef(s.day)?.short || s.day }}
-              {{ s.start }}
+              {{ papersStore.dayDef(hit.paper.day)?.short || hit.paper.day }}
+              {{ hit.paper.start }}
             </template>
-            <template v-if="s.poster_pos || s.room">
-              · {{ s.poster_pos || s.room }}
+            <template v-if="hit.paper.poster_pos || hit.paper.room">
+              · {{ hit.paper.poster_pos || hit.paper.room }}
             </template>
           </div>
         </div>
-        <div class="sim-score">{{ s._score.toFixed(2) }}</div>
+        <div class="sim-score">{{ hit.score.toFixed(2) }}</div>
       </router-link>
       <router-link
         class="btn det-explore"

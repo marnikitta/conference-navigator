@@ -191,6 +191,25 @@ export function buildRankingContext(
   };
 }
 
+/**
+ * Gather embedding vectors for the user's saved papers. Returns only
+ * non-null vecs, in iteration order of `papers`. Thin helper so the two
+ * components that rank against saved signal don't repeat the walk.
+ */
+export function collectSavedVecs(
+  papers: Paper[],
+  isSaved: (id: string) => boolean,
+  vecFor: (p: Paper) => Float32Array | null,
+): Float32Array[] {
+  const out: Float32Array[] = [];
+  for (const p of papers) {
+    if (!isSaved(p.id)) continue;
+    const v = vecFor(p);
+    if (v) out.push(v);
+  }
+  return out;
+}
+
 export interface SimilarHit {
   paper: Paper;
   score: number;

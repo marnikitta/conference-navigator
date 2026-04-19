@@ -3,7 +3,7 @@ import { computed, watchEffect } from "vue";
 
 defineOptions({ name: "Schedule" });
 import { storeToRefs } from "pinia";
-import { useUiStore } from "@/stores/ui";
+import { exploreUrl, useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import { groupBySession, tierText, tierClass } from "@/composables/usePapers";
@@ -66,9 +66,10 @@ function doPrint() {
 }
 
 function sessionHref(sess: SessionGroup) {
-  const query: Record<string, string> = { session: sess.session };
-  if (sess.day) query.day = sess.day;
-  return { path: "/", query };
+  return exploreUrl({
+    sessions: [sess.session],
+    ...(sess.day ? { days: [sess.day] } : {}),
+  });
 }
 </script>
 

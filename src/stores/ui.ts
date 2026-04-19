@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import type { RouteLocationRaw } from "vue-router";
 import router from "@/router";
 import type { Day, Filters, Sort, Tab } from "@/types";
 
@@ -89,6 +90,16 @@ function filtersToQuery(f: Filters): QueryOut {
   return out;
 }
 
+/**
+ * Build a RouteLocationRaw for Explore with a given filter set. Used by
+ * paper/schedule pages to link to a fresh filtered view (no inherited
+ * query). Single source of truth for filter ⇄ URL mapping alongside
+ * `FILTER_CODECS`.
+ */
+export function exploreUrl(f: Filters): RouteLocationRaw {
+  return { path: "/", query: filtersToQuery(f) };
+}
+
 function canonicalQuery(q: Record<string, QueryValue>): QueryOut {
   const out: QueryOut = {};
   for (const k of Object.keys(q).sort()) {
@@ -151,14 +162,6 @@ export const useUiStore = defineStore("ui", () => {
     scheduleDay.value = d;
   }
 
-  function openPaper(id: string) {
-    void router.push(`/paper/${encodeURIComponent(id)}`);
-  }
-
-  function openExport() {
-    void router.push("/export");
-  }
-
   function openFilterDrawer() {
     filterDrawerOpen.value = true;
   }
@@ -196,19 +199,6 @@ export const useUiStore = defineStore("ui", () => {
     patchExplore({ seed: null });
   }
 
-  function applyExploreFilter(patch: Filters) {
-    // Fresh view from the detail page: just the new filter, nothing else.
-    void router.push({
-      path: "/",
-      query: canonicalQuery(filtersToQuery(patch || {})),
-    });
-  }
-
-  function showAllSimilar(id: string) {
-    // Seed alone means "sort by similarity to id". No other params.
-    void router.push({ path: "/", query: { seed: id } });
-  }
-
   return {
     tab,
     filters,
@@ -222,12 +212,8 @@ export const useUiStore = defineStore("ui", () => {
     setQuery,
     setFilters,
     setScheduleDay,
-    openPaper,
     openFilterDrawer,
     closeFilterDrawer,
-    openExport,
     clearSeed,
-    applyExploreFilter,
-    showAllSimilar,
   };
 });

@@ -10,6 +10,7 @@ import { useSavedStore } from "@/stores/saved";
 import {
   cosine,
   buildRankingContext,
+  collectSavedVecs,
   type RankingContext,
 } from "@/composables/useSimilarity";
 import { groupByTopicRuns, truncate } from "@/composables/usePapers";
@@ -46,12 +47,11 @@ function snapshotRanking() {
     rankCtx.value = null;
     return;
   }
-  const vecs: Float32Array[] = [];
-  for (const p of papers.value) {
-    if (!savedIds.value.has(p.id)) continue;
-    const v = papersStore.vecFor(p);
-    if (v) vecs.push(v);
-  }
+  const vecs = collectSavedVecs(
+    papers.value,
+    (id) => savedIds.value.has(id),
+    (p) => papersStore.vecFor(p),
+  );
   const ctx = buildRankingContext(vecs);
   rankCtx.value = ctx;
   if (vecs.length > 0) console.log(ctx.describe());
