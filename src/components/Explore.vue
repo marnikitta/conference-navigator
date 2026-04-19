@@ -13,7 +13,7 @@ import type { Filters, Paper, Sort } from "@/types";
 import PaperRow from "./PaperRow.vue";
 import FilterDrawer from "./FilterDrawer.vue";
 
-const PAGE = 50;
+const PAGE = 500;
 
 const ui = useUiStore();
 const papersStore = usePapersStore();

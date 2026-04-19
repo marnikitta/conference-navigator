@@ -158,22 +158,24 @@ function filterInst(inst: string) {
       </div>
       <div v-if="paper.rating != null" class="kv">
         <div class="k">Review rating</div>
-        <div class="v" :class="{ accent: highRating }">
-          {{ paper.rating.toFixed(2) }}
-          <template v-if="paper.ratings && paper.ratings.length">
-            · reviews
-            <template v-for="(r, i) in paper.ratings" :key="i">
-              <a
-                v-if="paper.openreview_url"
-                :href="paper.openreview_url"
-                target="_blank"
-                rel="noopener"
-                class="review-link"
-                >{{ r }}<span class="arrow">↗</span></a
-              >
-              <span v-else>{{ r }}</span>
-              <template v-if="i < paper.ratings.length - 1">, </template>
-            </template>
+        <a
+          v-if="paper.openreview_url"
+          :href="paper.openreview_url"
+          target="_blank"
+          rel="noopener"
+          class="v review-link"
+          :class="{ accent: highRating }"
+        >
+          {{ paper.rating.toFixed(2)
+          }}<template v-if="paper.ratings && paper.ratings.length">
+            · reviews {{ paper.ratings.join(", ") }}
+          </template>
+          <span class="arrow">↗</span>
+        </a>
+        <div v-else class="v" :class="{ accent: highRating }">
+          {{ paper.rating.toFixed(2)
+          }}<template v-if="paper.ratings && paper.ratings.length">
+            · reviews {{ paper.ratings.join(", ") }}
           </template>
         </div>
       </div>

@@ -95,9 +95,10 @@ export const usePapersStore = defineStore("papers", () => {
   async function load() {
     try {
       const base = import.meta.env.BASE_URL;
+      const v = __DATA_VERSION__;
       const [papersRes, embRes] = await Promise.all([
-        fetch(`${base}data/rated-papers.json`),
-        fetch(`${base}data/embeddings.json`),
+        fetch(`${base}data/rated-papers.json?v=${v}`),
+        fetch(`${base}data/embeddings.json?v=${v}`),
       ]);
       if (!papersRes.ok) throw new Error(`papers HTTP ${papersRes.status}`);
       if (!embRes.ok) throw new Error(`embeddings HTTP ${embRes.status}`);
