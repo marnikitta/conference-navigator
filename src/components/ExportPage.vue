@@ -110,7 +110,31 @@ function selectAllShare(e: FocusEvent) {
   <div class="page">
     <div class="page-head">Export / Import</div>
 
-    <div class="det-section-title">Export ({{ savedList.length }} saved)</div>
+    <div class="det-section-title">About</div>
+    <p class="exp-hint">
+      Conference Navigator is a static companion for ICLR 2026: browse every
+      paper, filter by day, session, track, or topic cluster, and get
+      recommendations ranked by cosine similarity to papers you've saved.
+      Open a paper for its abstract, links, and five nearest neighbours;
+      use <strong>My schedule</strong> to walk the poster hall session by
+      session. There's no backend and no login.
+    </p>
+
+    <div class="det-section-title" style="margin-top: 28px">
+      Why snapshot?
+    </div>
+    <p class="exp-hint">
+      Your saved list lives in this browser's local storage —
+      <strong>only here</strong>. Clearing site data, switching to your
+      phone, or opening the site in another browser starts you from zero.
+      Copy the IDs or the share link below to back up your picks, move
+      them between devices, or hand your curated shortlist to a colleague.
+      Paste the same string into <strong>Import</strong> to restore.
+    </p>
+
+    <div class="det-section-title" style="margin-top: 28px">
+      Export ({{ savedList.length }} saved)
+    </div>
     <p class="exp-hint">Copy these IDs or select and save them anywhere.</p>
     <textarea
       ref="exportField"

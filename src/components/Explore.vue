@@ -273,10 +273,19 @@ watch(seedPaperId, resetShown);
         <span class="icon">⌕</span>
         <input
           type="text"
-          placeholder="Search titles, authors, topics"
+          placeholder="Search titles, authors, topics, institutes"
           :value="query"
           @input="onQuery"
         />
+        <button
+          v-if="query"
+          type="button"
+          class="clear"
+          aria-label="Clear search"
+          @click="ui.setQuery('')"
+        >
+          ×
+        </button>
       </div>
       <button class="pill" :class="{ on: filterCount }" @click="openFilters">
         Filters<template v-if="filterCount"> · {{ filterCount }}</template>

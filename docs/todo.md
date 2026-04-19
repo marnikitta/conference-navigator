@@ -8,10 +8,10 @@
 - [x] Check that cache busting works: static and importantly public/data if it changes
 - [x] Nicer printer setup
 - [x] In filters allow to hide favorite papers so it it clean slate
-- [ ] Make sure I can trust the navigator and it has all orals, keynotes etc
+- [x] In knn show the first hit
+- [x] Make the title scroll beyond the screen
 
-- In knn show the first hit
-- Make the title scroll beyond the screen
+- [ ] Make sure I can trust the navigator and it has all orals, keynotes etc
 - [ ] Make rating clickable and open openreview
 - [ ] more pagination by 500 rows
 
