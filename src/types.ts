@@ -1,12 +1,6 @@
 export type Tab = "explore" | "schedule";
 
-export type Sort =
-  | "reco"
-  | "similar"
-  | "rating"
-  | "time"
-  | "poster_id"
-  | "spotlight";
+export type Sort = "reco" | "similar" | "rating" | "time" | "poster_id";
 
 /** ISO date string, e.g. "2026-04-24". Inferred from paper data at load time. */
 export type Day = string;

@@ -1,0 +1,485 @@
+// Offline harness to compare ranking strategies against real data.
+// Gated behind RECO_DEBUG=1 so normal test runs skip it. Invoke with:
+//
+//   RECO_DEBUG=1 npx vitest run src/composables/reco.debug.test.ts
+//
+// Hard-codes a sample saved-ID set (40 papers with one dominant interest +
+// several smaller ones) so output is reproducible across iterations.
+
+import { describe, it } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import {
+  centroid,
+  clusterByLeader,
+  cosine,
+  mmrRerank as mmrRerankGeneric,
+  qualityPrior,
+  rankingScoreFromClusters,
+  type Cluster,
+} from "./useSimilarity";
+import { groupByTopicRuns } from "./usePapers";
+import type { Paper } from "@/types";
+
+const SAVED_IDS = [
+  "10006476",
+  "10007498",
+  "10007905",
+  "10008063",
+  "10008071",
+  "10008719",
+  "10008992",
+  "10009205",
+  "10009680",
+  "10009969",
+  "10010012",
+  "10010079",
+  "10010162",
+  "10010506",
+  "10010891",
+  "10011453",
+  "10011454",
+  "10011715",
+  "10011716",
+  "10010662",
+  "10010931",
+  "10007497",
+  "10009900",
+  "10009005",
+  "10008736",
+  "10009494",
+  "10009493",
+  "10009971",
+  "10009972",
+  "10009147",
+  "10009146",
+  "10006985",
+  "10006532",
+  "10006531",
+  "10007023",
+  "10007174",
+  "10007531",
+  "10009073",
+  "10009933",
+  "10010092",
+];
+
+interface Candidate {
+  id: string;
+  title: string;
+  rating: number | null;
+  topic: string | null;
+  vec: Float32Array;
+}
+
+function loadCorpus(): { all: Candidate[]; byId: Map<string, Candidate> } {
+  const root = process.cwd();
+  const rawPapers = JSON.parse(
+    fs.readFileSync(path.join(root, "public/data/papers.json"), "utf8"),
+  ) as Array<{
+    id: string;
+    title: string;
+    openreview?: { ratings?: number[] } | null;
+    metadata?: { topic?: string | null };
+  }>;
+  const rawEmb = JSON.parse(
+    fs.readFileSync(path.join(root, "public/data/embeddings.json"), "utf8"),
+  ) as Record<string, number[]>;
+
+  const embs = new Map<string, Float32Array>();
+  for (const id in rawEmb) {
+    const arr = rawEmb[id];
+    if (!arr?.length) continue;
+    const v = new Float32Array(arr);
+    let sq = 0;
+    for (let i = 0; i < v.length; i++) sq += v[i] * v[i];
+    const n = Math.sqrt(sq) || 1;
+    for (let i = 0; i < v.length; i++) v[i] /= n;
+    embs.set(id, v);
+  }
+
+  const all: Candidate[] = [];
+  for (const raw of rawPapers) {
+    const v = embs.get(raw.id);
+    if (!v) continue;
+    const ratings = raw.openreview?.ratings ?? [];
+    const rating = ratings.length
+      ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+      : null;
+    all.push({
+      id: raw.id,
+      title: raw.title,
+      rating,
+      topic: raw.metadata?.topic ?? null,
+      vec: v,
+    });
+  }
+  return { all, byId: new Map(all.map((p) => [p.id, p])) };
+}
+
+// lseNoSize is a harness-only variant that drops the `log(1+size)`
+// weighting. Used to show why size weighting matters (without it,
+// singleton-dominated clusters can hijack the feed).
+function lseNoSize(
+  vec: Float32Array,
+  clusters: Cluster[],
+  tau: number,
+): number {
+  const xs: number[] = [];
+  for (const c of clusters) {
+    if (c.memberIds.length < 2) continue;
+    xs.push(cosine(vec, c.centroid));
+  }
+  if (xs.length === 0) return -Infinity;
+  if (xs.length === 1) return xs[0];
+  let mx = -Infinity;
+  for (const x of xs) if (x > mx) mx = x;
+  let sum = 0;
+  for (const x of xs) sum += Math.exp((x - mx) / tau);
+  return mx + tau * Math.log(sum);
+}
+
+// Wrapper that adapts the generic `mmrRerank` to the harness's
+// Candidate-based signature. Keeps the callsites below readable.
+function mmrRerank(
+  candidates: Candidate[],
+  rel: (c: Candidate) => number,
+  k: number,
+  poolSize: number,
+  lambda: number,
+): Candidate[] {
+  return mmrRerankGeneric(candidates, (c) => c.vec, rel, {
+    k,
+    poolSize,
+    lambda,
+  }).slice(0, k);
+}
+
+function distinctTopics(ranked: Candidate[], k: number): number {
+  const s = new Set<string>();
+  for (const p of ranked.slice(0, k)) if (p.topic) s.add(p.topic);
+  return s.size;
+}
+
+function longestTopicRun(ranked: Candidate[], k: number): number {
+  let best = 0;
+  let cur = 0;
+  let last: string | null | undefined = undefined;
+  for (const p of ranked.slice(0, k)) {
+    if (p.topic && p.topic === last) {
+      cur++;
+    } else {
+      if (cur > best) best = cur;
+      cur = 1;
+      last = p.topic;
+    }
+  }
+  if (cur > best) best = cur;
+  return best;
+}
+
+function meanRating(ranked: Candidate[], k: number): number {
+  const rs = ranked
+    .slice(0, k)
+    .map((p) => p.rating)
+    .filter((r): r is number => r != null);
+  if (!rs.length) return 0;
+  return rs.reduce((a, b) => a + b, 0) / rs.length;
+}
+
+function meanCosToCentroid(
+  ranked: Candidate[],
+  k: number,
+  centroidVec: Float32Array,
+): number {
+  const slice = ranked.slice(0, k);
+  if (!slice.length) return 0;
+  let s = 0;
+  for (const p of slice) s += cosine(p.vec, centroidVec);
+  return s / slice.length;
+}
+
+// Pretend-Paper shape for feeding into groupByTopicRuns. It only reads
+// id + topic_cluster, so we hand it the minimum.
+function asPaper(c: Candidate): Paper {
+  return { id: c.id, topic_cluster: c.topic } as unknown as Paper;
+}
+
+interface BlockingStats {
+  groups: number;
+  maxGroupSize: number;
+  singles: number;
+  inGroupShare: number;
+}
+
+function blockingStats(ranked: Candidate[], n: number): BlockingStats {
+  const view = ranked.slice(0, n).map(asPaper);
+  const blocks = groupByTopicRuns(view);
+  let groups = 0;
+  let singles = 0;
+  let maxGroupSize = 0;
+  let inGroup = 0;
+  for (const b of blocks) {
+    if (b.kind === "group") {
+      groups++;
+      if (b.papers.length > maxGroupSize) maxGroupSize = b.papers.length;
+      inGroup += b.papers.length;
+    } else {
+      singles++;
+    }
+  }
+  const total = view.length;
+  return {
+    groups,
+    maxGroupSize,
+    singles,
+    inGroupShare: total > 0 ? inGroup / total : 0,
+  };
+}
+
+// Top-K set overlap between two runs. Returns |A ∩ B|.
+function topKOverlap(a: Candidate[], b: Candidate[], k: number): number {
+  const setA = new Set(a.slice(0, k).map((c) => c.id));
+  let overlap = 0;
+  for (const c of b.slice(0, k)) if (setA.has(c.id)) overlap++;
+  return overlap;
+}
+
+// Average |rank_A − rank_B| for items present in both top-K lists.
+// Missing items don't count — pair with topKOverlap for a fuller picture.
+function avgRankShift(a: Candidate[], b: Candidate[], k: number): number {
+  const rankA = new Map<string, number>();
+  a.slice(0, k).forEach((c, i) => rankA.set(c.id, i));
+  let sum = 0;
+  let n = 0;
+  b.slice(0, k).forEach((c, i) => {
+    const r = rankA.get(c.id);
+    if (r !== undefined) {
+      sum += Math.abs(r - i);
+      n++;
+    }
+  });
+  return n > 0 ? sum / n : 0;
+}
+
+describe.skipIf(!process.env.RECO_DEBUG)("reco strategies (offline)", () => {
+  it("compares strategies on the 40-save fixture", () => {
+    const { all, byId } = loadCorpus();
+    const savedSet = new Set(SAVED_IDS);
+    const savedVecs: Float32Array[] = [];
+    for (const id of SAVED_IDS) {
+      const p = byId.get(id);
+      if (p) savedVecs.push(p.vec);
+    }
+    const candidates = all.filter((p) => !savedSet.has(p.id));
+
+    const cVec = centroid(savedVecs);
+    if (!cVec) throw new Error("no saved vecs");
+    const clusters = clusterByLeader(
+      savedVecs.map((v, i) => ({ id: String(i), vec: v })),
+    );
+
+    const strategies: Array<{ name: string; rank: () => Candidate[] }> = [
+      {
+        name: "centroid (baseline)",
+        rank: () =>
+          candidates
+            .slice()
+            .sort((a, b) => cosine(cVec, b.vec) - cosine(cVec, a.vec)),
+      },
+      {
+        name: "cluster-LSE τ=0.3",
+        rank: () =>
+          candidates
+            .slice()
+            .sort(
+              (a, b) =>
+                rankingScoreFromClusters(b.vec, clusters, 0.3) -
+                rankingScoreFromClusters(a.vec, clusters, 0.3),
+            ),
+      },
+      {
+        name: "cluster-LSE τ=1.0",
+        rank: () =>
+          candidates
+            .slice()
+            .sort(
+              (a, b) =>
+                rankingScoreFromClusters(b.vec, clusters, 1.0) -
+                rankingScoreFromClusters(a.vec, clusters, 1.0),
+            ),
+      },
+      {
+        name: "cluster-LSE no-size τ=0.3",
+        rank: () =>
+          candidates
+            .slice()
+            .sort(
+              (a, b) =>
+                lseNoSize(b.vec, clusters, 0.3) -
+                lseNoSize(a.vec, clusters, 0.3),
+            ),
+      },
+      {
+        name: "cluster-LSE + rating γ=0.8",
+        rank: () => {
+          const score = (c: Candidate) =>
+            rankingScoreFromClusters(c.vec, clusters, 0.3) +
+            0.8 * qualityPrior(c.rating);
+          return candidates.slice().sort((a, b) => score(b) - score(a));
+        },
+      },
+      {
+        name: "centroid + MMR λ=0.75",
+        rank: () => {
+          const rel = (c: Candidate) => cosine(cVec, c.vec);
+          return mmrRerank(candidates, rel, 50, 200, 0.75);
+        },
+      },
+      {
+        name: "OPINIONATED: cluster-LSE + rating + MMR",
+        rank: () => {
+          const rel = (c: Candidate) =>
+            rankingScoreFromClusters(c.vec, clusters, 0.3) +
+            0.8 * qualityPrior(c.rating);
+          return mmrRerank(candidates, rel, 50, 200, 0.75);
+        },
+      },
+    ];
+
+    const K = 50;
+    const BLOCK_N = 200;
+    console.log(
+      `\nRanking ${candidates.length} candidates against ${savedVecs.length} saved (top ${K}; blocking on first ${BLOCK_N})\n`,
+    );
+    console.log(
+      "strategy                                  │ topics │ run │ mean★ │ coh   │ grps │ max │ in-grp",
+    );
+    console.log(
+      "──────────────────────────────────────────┼────────┼─────┼───────┼───────┼──────┼─────┼───────",
+    );
+    const rankedByStrategy: Record<string, Candidate[]> = {};
+    for (const s of strategies) {
+      const ranked = s.rank();
+      rankedByStrategy[s.name] = ranked;
+      const topics = distinctTopics(ranked, K);
+      const run = longestTopicRun(ranked, K);
+      const mr = meanRating(ranked, K);
+      const coh = meanCosToCentroid(ranked, K, cVec);
+      const b = blockingStats(ranked, BLOCK_N);
+      console.log(
+        `${s.name.padEnd(41)} │ ${String(topics).padStart(6)} │ ${String(run).padStart(3)} │ ${mr.toFixed(2).padStart(5)} │ ${coh.toFixed(3).padStart(5)} │ ${String(b.groups).padStart(4)} │ ${String(b.maxGroupSize).padStart(3)} │ ${(b.inGroupShare * 100).toFixed(0).padStart(4)}%`,
+      );
+    }
+
+    // Qualitative dump: top 12 titles per strategy so we can eyeball
+    // relevance, garbage, and whether blocks are meaningful.
+    for (const s of strategies) {
+      const ranked = rankedByStrategy[s.name];
+      console.log(`\n── ${s.name} — top 12 ──`);
+      for (let i = 0; i < Math.min(12, ranked.length); i++) {
+        const p = ranked[i];
+        const r = p.rating == null ? " — " : p.rating.toFixed(1);
+        const topic = (p.topic ?? "—").slice(0, 26).padEnd(26);
+        const title =
+          p.title.length > 60 ? p.title.slice(0, 57) + "…" : p.title;
+        console.log(
+          `  ${String(i + 1).padStart(2)}. ★${r}  ${topic}  ${title}`,
+        );
+      }
+    }
+
+    // Show how the UI would group the opinionated top 50 into blocks.
+    const winner = "OPINIONATED: cluster-LSE + rating + MMR";
+    console.log(`\n── ${winner}: UI blocks on top 50 ──`);
+    const opTop50 = rankedByStrategy[winner].slice(0, 50).map(asPaper);
+    const opBlocks = groupByTopicRuns(opTop50);
+    const titleById = new Map<string, Candidate>(
+      rankedByStrategy[winner].map((c) => [c.id, c]),
+    );
+    for (const b of opBlocks) {
+      if (b.kind === "group") {
+        console.log(`  [GROUP] ${b.topic}  ×${b.papers.length}`);
+        for (const pp of b.papers) {
+          const c = titleById.get(pp.id)!;
+          const t = c.title.length > 55 ? c.title.slice(0, 52) + "…" : c.title;
+          console.log(`    • ★${c.rating?.toFixed(1) ?? "—"}  ${t}`);
+        }
+      } else {
+        const c = titleById.get(b.paper.id)!;
+        const topic = (c.topic ?? "—").slice(0, 22).padEnd(22);
+        const t = c.title.length > 55 ? c.title.slice(0, 52) + "…" : c.title;
+        console.log(`  [—]  ★${c.rating?.toFixed(1) ?? "—"} ${topic} ${t}`);
+      }
+    }
+
+    console.log(
+      `\ncluster sizes: ${clusters
+        .map((c) => c.memberIds.length)
+        .sort((a, b) => b - a)
+        .join(",")}`,
+    );
+  }, 30_000);
+
+  it("sweeps noise ε to quantify run-to-run variation", () => {
+    const { all, byId } = loadCorpus();
+    const savedSet = new Set(SAVED_IDS);
+    const savedVecs: Float32Array[] = [];
+    for (const id of SAVED_IDS) {
+      const p = byId.get(id);
+      if (p) savedVecs.push(p.vec);
+    }
+    const candidates = all.filter((p) => !savedSet.has(p.id));
+    const clusters = clusterByLeader(
+      savedVecs.map((v, i) => ({ id: String(i), vec: v })),
+    );
+
+    // Run the opinionated strategy once with a given ε, assigning fresh
+    // per-candidate noise each invocation. Two invocations with the
+    // same ε should differ — that's the "see variations on reload" goal.
+    const opinionatedWithNoise = (eps: number): Candidate[] => {
+      const noise = new Map<string, number>();
+      const noiseFor = (id: string): number => {
+        let n = noise.get(id);
+        if (n === undefined) {
+          n = Math.random() - 0.5;
+          noise.set(id, n);
+        }
+        return n;
+      };
+      const rel = (c: Candidate) =>
+        rankingScoreFromClusters(c.vec, clusters, 0.3) +
+        0.8 * qualityPrior(c.rating) +
+        eps * noiseFor(c.id);
+      return mmrRerank(candidates, rel, 50, 200, 0.75);
+    };
+
+    const K = 50;
+    const epsilons = [0, 0.05, 0.1, 0.15, 0.25];
+    console.log(
+      `\nNoise sweep on the opinionated strategy (two fresh runs each, top ${K}):\n`,
+    );
+    console.log(
+      "ε     │ topics │ mean★ │ coh   │ overlap (A∩B) │ avg rank shift",
+    );
+    console.log(
+      "──────┼────────┼───────┼───────┼───────────────┼───────────────",
+    );
+    for (const eps of epsilons) {
+      const runA = opinionatedWithNoise(eps);
+      const runB = opinionatedWithNoise(eps);
+      const topics = distinctTopics(runA, K);
+      const mr = meanRating(runA, K);
+      const coh = meanCosToCentroid(
+        runA,
+        K,
+        centroid(savedVecs) ?? new Float32Array(),
+      );
+      const overlap = topKOverlap(runA, runB, K);
+      const shift = avgRankShift(runA, runB, K);
+      console.log(
+        `${eps.toFixed(2).padStart(5)} │ ${String(topics).padStart(6)} │ ${mr.toFixed(2).padStart(5)} │ ${coh.toFixed(3).padStart(5)} │ ${String(overlap).padStart(5)}/${K}        │ ${shift.toFixed(2).padStart(14)}`,
+      );
+    }
+  }, 30_000);
+});

@@ -32,13 +32,7 @@ const FILTER_CODECS: FilterCodec<keyof Filters>[] = [
 const FILTER_URL_KEYS = new Set(FILTER_CODECS.map((c) => c.urlKey));
 // "similar" is implicit — if `seed` is in the URL, sort IS similar. It's
 // never written into the URL directly.
-const ALLOWED_SORTS: Sort[] = [
-  "reco",
-  "rating",
-  "time",
-  "poster_id",
-  "spotlight",
-];
+const ALLOWED_SORTS: Sort[] = ["reco", "rating", "time", "poster_id"];
 
 function arrayParam(v: unknown): string[] {
   if (v == null) return [];

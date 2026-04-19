@@ -4,7 +4,8 @@ import {
   type Cluster,
   clusterByLeader,
   cosine,
-  maxSimilarityToClusters,
+  mmrRerank,
+  qualityPrior,
   rankingScoreFromClusters,
 } from "./useSimilarity";
 
@@ -127,42 +128,6 @@ describe("clusterByLeader", () => {
   });
 });
 
-describe("maxSimilarityToClusters", () => {
-  it("returns -Infinity for empty clusters", () => {
-    expect(maxSimilarityToClusters(vecAt(0), [])).toBe(-Infinity);
-  });
-
-  it("returns -Infinity for a null vec", () => {
-    const clusters = clusterByLeader([{ id: "a", vec: vecAt(0) }]);
-    expect(maxSimilarityToClusters(null, clusters)).toBe(-Infinity);
-    expect(maxSimilarityToClusters(undefined, clusters)).toBe(-Infinity);
-  });
-
-  it("picks the cluster with the highest cosine", () => {
-    const clusters = clusterByLeader([
-      { id: "a", vec: vecAt(0) },
-      { id: "b", vec: vecAt(Math.PI / 2) },
-    ]);
-    // Query aligned with cluster "a" → score ≈ 1 against a, 0 against b.
-    const score = maxSimilarityToClusters(vecAt(0), clusters);
-    expect(score).toBeCloseTo(1, 6);
-  });
-
-  it("returns the actual cosine value", () => {
-    const clusters = clusterByLeader([{ id: "a", vec: vecAt(0) }]);
-    const score = maxSimilarityToClusters(vecAt(Math.PI / 3), clusters);
-    // cos(π/3) = 0.5
-    expect(score).toBeCloseTo(0.5, 6);
-  });
-
-  it("agrees with raw cosine against a single-member cluster", () => {
-    const v = vecAt(0.4);
-    const q = vecAt(0.1);
-    const clusters = clusterByLeader([{ id: "a", vec: v }]);
-    expect(maxSimilarityToClusters(q, clusters)).toBeCloseTo(cosine(v, q), 6);
-  });
-});
-
 // Build a cluster synthetically so the member count can be set without
 // having to construct enough near-duplicate vectors to force clustering.
 function makeCluster(axis: Float32Array, size: number): Cluster {
@@ -196,25 +161,41 @@ describe("rankingScoreFromClusters", () => {
     expect(score).toBeCloseTo(Math.log(3), 6); // cosine=1 × log(1+2)
   });
 
-  it("favors a larger cluster even at lower cosine", () => {
+  it("favors a larger cluster even at lower cosine (τ→0 recovers max)", () => {
     // Small cluster aligned with the query, larger cluster slightly off.
-    // log-weight on the large one wins:
+    // log-weight on the large one wins at hard max:
     //   small: cos(0) × log(3) = 1 × 1.0986 = 1.0986
     //   large: cos(π/4) × log(11) = 0.7071 × 2.3979 = 1.6957
     const small = makeCluster(vecAt(0), 2);
     const large = makeCluster(vecAt(Math.PI / 4), 10);
-    const score = rankingScoreFromClusters(vecAt(0), [small, large]);
-    expect(score).toBeCloseTo(Math.cos(Math.PI / 4) * Math.log(11), 5);
+    const score = rankingScoreFromClusters(vecAt(0), [small, large], 1e-4);
+    expect(score).toBeCloseTo(Math.cos(Math.PI / 4) * Math.log(11), 4);
   });
 
-  it("small cluster can still win when query aligns closely with it", () => {
+  it("small cluster can still win when query aligns closely with it (τ→0)", () => {
     // Small, perfectly aligned vs. large, orthogonal.
     //   small: 1 × log(3) ≈ 1.0986
     //   large: 0 × log(21) = 0
     const small = makeCluster(vecAt(0), 2);
     const large = makeCluster(vecAt(Math.PI / 2), 20);
-    const score = rankingScoreFromClusters(vecAt(0), [small, large]);
-    expect(score).toBeCloseTo(Math.log(3), 5);
+    const score = rankingScoreFromClusters(vecAt(0), [small, large], 1e-4);
+    expect(score).toBeCloseTo(Math.log(3), 4);
+  });
+
+  it("LSE blends clusters as τ grows", () => {
+    // With two competing non-singleton clusters, LSE with τ>0 returns a
+    // score strictly greater than the hard max — that's the smoothing.
+    const small = makeCluster(vecAt(0), 2);
+    const large = makeCluster(vecAt(Math.PI / 4), 10);
+    const xSmall = 1 * Math.log(3);
+    const xLarge = Math.cos(Math.PI / 4) * Math.log(11);
+    const hardMax = Math.max(xSmall, xLarge);
+    const scoreLow = rankingScoreFromClusters(vecAt(0), [small, large], 1e-4);
+    const scoreMid = rankingScoreFromClusters(vecAt(0), [small, large], 0.3);
+    const scoreHigh = rankingScoreFromClusters(vecAt(0), [small, large], 5);
+    expect(scoreLow).toBeCloseTo(hardMax, 4);
+    expect(scoreMid).toBeGreaterThan(hardMax);
+    expect(scoreHigh).toBeGreaterThan(scoreMid);
   });
 
   it("treats singleton + non-singleton mix as if the singleton weren't there", () => {
@@ -226,5 +207,85 @@ describe("rankingScoreFromClusters", () => {
     ]);
     // Should equal just the pair's score (cosine 1 × log 3).
     expect(score).toBeCloseTo(Math.log(3), 5);
+  });
+});
+
+describe("qualityPrior", () => {
+  it("maps 5.0 → 0 and 7.0 → 1 with linear slope between", () => {
+    expect(qualityPrior(5)).toBeCloseTo(0, 6);
+    expect(qualityPrior(6)).toBeCloseTo(0.5, 6);
+    expect(qualityPrior(7)).toBeCloseTo(1, 6);
+  });
+
+  it("clips below 5 and above 7", () => {
+    expect(qualityPrior(3)).toBe(0);
+    expect(qualityPrior(9)).toBe(1);
+  });
+
+  it("returns a mild 0.3 default when rating is missing", () => {
+    expect(qualityPrior(null)).toBe(0.3);
+  });
+});
+
+describe("mmrRerank", () => {
+  it("picks the most relevant first", () => {
+    const items = [
+      { id: "a", vec: vecAt(0), rel: 0.1 },
+      { id: "b", vec: vecAt(Math.PI / 2), rel: 0.9 },
+    ];
+    const out = mmrRerank(
+      items,
+      (x) => x.vec,
+      (x) => x.rel,
+      { k: 2, poolSize: 10, lambda: 0.7 },
+    );
+    expect(out.map((x) => x.id)).toEqual(["b", "a"]);
+  });
+
+  it("prefers a distant-but-lower-rel item over a near-duplicate of the head (λ low)", () => {
+    // Three candidates: H (head, rel 1.0), N (near-dup of H, rel 0.95),
+    // F (far from H, rel 0.8). With λ=0.3, MMR should pick F second.
+    const items = [
+      { id: "H", vec: vecAt(0), rel: 1.0 },
+      { id: "N", vec: vecAt(0.01), rel: 0.95 },
+      { id: "F", vec: vecAt(Math.PI / 2), rel: 0.8 },
+    ];
+    const out = mmrRerank(
+      items,
+      (x) => x.vec,
+      (x) => x.rel,
+      { k: 2, poolSize: 10, lambda: 0.3 },
+    );
+    expect(out.slice(0, 2).map((x) => x.id)).toEqual(["H", "F"]);
+  });
+
+  it("keeps near-duplicate second when λ=1 (pure relevance)", () => {
+    const items = [
+      { id: "H", vec: vecAt(0), rel: 1.0 },
+      { id: "N", vec: vecAt(0.01), rel: 0.95 },
+      { id: "F", vec: vecAt(Math.PI / 2), rel: 0.8 },
+    ];
+    const out = mmrRerank(
+      items,
+      (x) => x.vec,
+      (x) => x.rel,
+      { k: 2, poolSize: 10, lambda: 1 },
+    );
+    expect(out.slice(0, 2).map((x) => x.id)).toEqual(["H", "N"]);
+  });
+
+  it("sends vec-less items to the tail", () => {
+    const items = [
+      { id: "a", vec: vecAt(0), rel: 0.5 },
+      { id: "b", vec: null as unknown as Float32Array | null, rel: 0.9 },
+      { id: "c", vec: vecAt(Math.PI / 2), rel: 0.2 },
+    ];
+    const out = mmrRerank(
+      items,
+      (x) => x.vec,
+      (x) => x.rel,
+      { k: 2, poolSize: 10, lambda: 0.7 },
+    );
+    expect(out[out.length - 1].id).toBe("b");
   });
 });

@@ -60,9 +60,9 @@ dist/                 build output (gitignored)
 Four routes, each its own page (no overlays):
 
 - **`/` — Explore**: filterable, searchable list. Sort modes: `reco`
-  (cosine to the centroid of saved papers; falls back to rating when
-  nothing is saved), `similar` (cosine to a seed paper — implicit from
-  the `seed` URL param), `rating`, `time`, `poster_id`, `spotlight`.
+  (opinionated recommender — see "Recommender" below; falls back to
+  rating when nothing is saved), `similar` (cosine to a seed paper —
+  implicit from the `seed` URL param), `rating`, `time`, `poster_id`.
   Filter drawer supports day, session, event type, min rating,
   saved-only, topic cluster, institution.
 - **`/schedule` — My schedule**: saved papers for the active day,
@@ -80,6 +80,43 @@ Four routes, each its own page (no overlays):
 There is **no "For You" tab and no 2D/UMAP map view** —
 recommendation/k-NN logic powers sort modes and the similar-papers
 strip only.
+
+## Recommender
+
+The "reco" sort in `src/composables/useSimilarity.ts` is a three-stage
+pipeline (strategy name: `"opinionated"`, toggleable via
+`RANKING_STRATEGY`). Runs entirely in the browser on the saved set.
+
+1. **Cluster-LSE relevance.** Saved papers are leader-clustered
+   (`clusterByLeader`, cosine threshold 0.7). For each candidate we
+   compute
+   `score = τ · log Σ_c exp((cos(v, c̄) · log(1+|c|)) / τ)`
+   over non-singleton clusters, with `τ = 0.3` (OPINIONATED_TAU). τ→0
+   recovers hard max (blocky); τ→∞ approaches average. Size weight
+   keeps larger clusters in charge without silencing smaller ones.
+2. **Quality prior.** `γ · qualityPrior(rating)` where
+   `qualityPrior = clip((rating − 5) / 2, 0, 1)`, γ=0.8
+   (OPINIONATED_RATING_WEIGHT). Missing rating → 0.3.
+3. **MMR diversification.** `mmrRerank` picks 120 items from the top
+   250 by `λ · rel − (1−λ) · max cos-to-picked`, λ=0.75
+   (OPINIONATED_LAMBDA / POOL / PICK). The tail is relevance-sorted.
+4. **Session-stable jitter.** ε=0.10 per-vec noise
+   (OPINIONATED_NOISE) cached in a module-level `WeakMap` keyed by
+   `Float32Array` identity. Filter/query/sort changes don't reshuffle
+   (same cache); page reload gives fresh noise (new embeddings Map →
+   new array instances).
+
+Rebuild is pinned to saved-set and embeddings changes (not
+filter/query/sort) via `watch(savedIds, snapshotRanking, { deep })`.
+The pre-computed `rankOrder: Map<paperId, number>` is reused by every
+subsequent filter/query recompute, so scrolling and typing are free.
+A `RECO_DEBUG=1`-gated harness at `src/composables/reco.debug.test.ts`
+benchmarks strategies against a fixed 40-save fixture (diversity,
+mean rating, blocking simulation, noise-ε sweep).
+
+Other sort modes are trivial sorts in `Explore.vue`. `FilterDrawer`
+explicitly uses strategy `"centroid"` to order the cluster filter
+chips (stable, not re-ordered per visit).
 
 ## URL schema
 

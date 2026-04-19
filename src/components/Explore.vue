@@ -36,17 +36,21 @@ const savedPapers = computed(() =>
   papers.value.filter((p) => savedIds.value.has(p.id)),
 );
 
-// Snapshot of the ranking context used by `reco`. Refreshed at natural
-// moments (filter/sort/query/seed change, embeddings load, route
-// re-activation) so toggling save doesn't reshuffle the list mid-scroll.
-// The active strategy (centroid vs. clusters) is a code-level toggle in
-// `useSimilarity.ts` — see `RANKING_STRATEGY`.
+// Snapshot of the ranking context used by `reco`, plus a pre-computed
+// order of every paper under that context. Rebuilding the ranking is
+// the expensive step (MMR is O(pick·pool·dim)), so we pin it to
+// saved-set / embeddings changes only — filter/sort/query tweaks reuse
+// the cached order via `rankOrder`. The active strategy is a
+// code-level toggle in `useSimilarity.ts` — see `RANKING_STRATEGY`.
 const rankCtx = ref<RankingContext | null>(null);
+const rankOrder = ref<Map<string, number>>(new Map());
 function snapshotRanking() {
   if (!embeddings.value) {
     rankCtx.value = null;
+    rankOrder.value = new Map();
     return;
   }
+  const t0 = performance.now();
   const vecs = collectSavedVecs(
     papers.value,
     (id) => savedIds.value.has(id),
@@ -54,10 +58,41 @@ function snapshotRanking() {
   );
   const ctx = buildRankingContext(vecs);
   rankCtx.value = ctx;
-  if (vecs.length > 0) console.log(ctx.describe());
+  if (!ctx.active) {
+    rankOrder.value = new Map();
+    return;
+  }
+  const ordered = ctx.rerank
+    ? ctx.rerank(
+        papers.value,
+        (p) => papersStore.vecFor(p),
+        (p) => p.rating,
+      )
+    : papers.value.slice().sort((a, b) => {
+        const sa = ctx.score(papersStore.vecFor(a));
+        const sb = ctx.score(papersStore.vecFor(b));
+        return sb - sa;
+      });
+  const map = new Map<string, number>();
+  for (let i = 0; i < ordered.length; i++) map.set(ordered[i].id, i);
+  rankOrder.value = map;
+  if (vecs.length > 0) {
+    console.log(ctx.describe());
+    if (ctx.diagnose) {
+      const topItems = ordered.slice(0, 100).map((p) => ({
+        vec: papersStore.vecFor(p),
+        rating: p.rating,
+      }));
+      ctx.diagnose(topItems);
+    }
+    console.log(
+      `[reco] snapshot built in ${(performance.now() - t0).toFixed(1)}ms`,
+    );
+  }
 }
 snapshotRanking();
 watch(embeddings, snapshotRanking);
+watch(savedIds, snapshotRanking, { deep: true });
 
 const seedPaper = computed<Paper | null>(() => {
   if (!seedPaperId.value) return null;
@@ -114,12 +149,9 @@ const sorted = computed<Paper[]>(() => {
   const s = sort.value;
   if (s === "reco") {
     const ctx = rankCtx.value;
-    if (ctx?.active) {
-      copy.sort((a, b) => {
-        const sa = ctx.score(papersStore.vecFor(a));
-        const sb = ctx.score(papersStore.vecFor(b));
-        return sb - sa;
-      });
+    const order = rankOrder.value;
+    if (ctx?.active && order.size > 0) {
+      copy.sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9));
     } else {
       copy.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     }
@@ -140,13 +172,6 @@ const sorted = computed<Paper[]>(() => {
     );
   } else if (s === "poster_id") {
     copy.sort((a, b) => (a.poster_idx ?? 99999) - (b.poster_idx ?? 99999));
-  } else if (s === "spotlight") {
-    const rank: Record<string, number> = {
-      Spotlight: 0,
-      Oral: 1,
-      Poster: 2,
-    };
-    copy.sort((a, b) => (rank[a.tier] ?? 3) - (rank[b.tier] ?? 3));
   }
   return copy;
 });
@@ -286,13 +311,9 @@ onBeforeRouteLeave(() => {
 });
 onActivated(() => {
   routeActive = true;
-  snapshotRanking();
 });
 const resetShown = () => {
-  if (routeActive) {
-    shown.value = pageSize.value;
-    snapshotRanking();
-  }
+  if (routeActive) shown.value = pageSize.value;
 };
 watch(filters, resetShown, { deep: true });
 watch(sort, resetShown);
@@ -346,7 +367,6 @@ watch(seedPaperId, resetShown);
         <option value="rating">review rating</option>
         <option value="time">chronological</option>
         <option value="poster_id">poster ID</option>
-        <option value="spotlight">spotlights first</option>
       </select>
     </div>
   </div>
