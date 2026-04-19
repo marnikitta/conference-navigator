@@ -385,25 +385,40 @@ a { color: inherit; }
 }
 
 /* Print — schedule only */
+.print-header, .print-all { display: none; }
 @media print {
+  @page { margin: 12mm; }
   body, html, .app { background: #fff; color: #000; height: auto; overflow: visible; }
   .topbar, .tabs, .filter-drawer, .sheet-overlay, .controls, .day-tabs,
-  .tab, .sched-tools { display: none !important; }
+  .tab, .sched-tools, .screen-only { display: none !important; }
   .sched, .sched-body { overflow: visible; display: block; padding: 0; }
+  .print-header { display: block !important; padding: 0 0 6px; }
+  .print-header .ph-mark { font-size: 16px; font-weight: 600; }
+  .print-header .ph-sub { font-size: 10px; color: #444; margin-top: 1px; }
+  .print-all { display: block !important; }
+  .print-day { page-break-inside: auto; margin-top: 8px; }
+  .print-day + .print-day { page-break-before: always; margin-top: 0; }
+  .print-day-head {
+    font-size: 13px; font-weight: 600; color: #000;
+    padding: 4px 0 2px; margin-bottom: 2px;
+  }
+  .sess-block { margin-bottom: 4px; }
   .sess-head {
-    background: #fff; border-bottom: 1px solid #000;
-    page-break-inside: avoid; padding: 12px 20px;
+    background: #fff; border: 0 !important;
+    page-break-inside: avoid; padding: 3px 0 1px; margin-bottom: 0;
   }
+  .sess-head .sess-name { font-size: 11px; font-weight: 600; }
+  .sess-head .sess-time { font-size: 9px; color: #555; margin-top: 0; }
+  .sess-head .sess-counts { font-size: 9px; color: #555; }
   .check-row {
-    grid-template-columns: 84px 1fr auto;
-    page-break-inside: avoid; padding: 8px 20px;
-    border-top: 1px solid #ddd !important;
+    grid-template-columns: 64px 1fr auto; gap: 8px;
+    page-break-inside: avoid; padding: 1px 0;
+    border: 0 !important;
   }
-  .print-header { display: block !important; padding: 20px; border-bottom: 2px solid #000; }
-  .print-header .ph-mark { font-size: 26px; font-weight: 600; }
-  .print-header .ph-sub { font-size: 13px; color: #444; margin-top: 4px; }
+  .chk-pos { font-size: 9px; padding-top: 1px; }
+  .chk-title { font-size: 10px; font-weight: 400; line-height: 1.25; }
+  .chk-tier { font-size: 9px; padding-top: 1px; }
 }
-.print-header { display: none; }
 
 /* Mobile */
 @media (max-width: 720px) {

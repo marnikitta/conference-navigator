@@ -37,13 +37,21 @@ const byDay = computed<Record<Day, Paper[]>>(() => {
 
 const curPapers = computed<Paper[]>(() => byDay.value[day.value] || []);
 
-const sessions = computed<SessionGroup[]>(() => {
-  const groups = groupBySession(curPapers.value);
+function sessionsFor(list: Paper[]): SessionGroup[] {
+  const groups = groupBySession(list);
   for (const g of groups) {
     g.papers.sort((a, b) => (a.poster_idx ?? 99999) - (b.poster_idx ?? 99999));
   }
   return groups;
-});
+}
+
+const sessions = computed<SessionGroup[]>(() => sessionsFor(curPapers.value));
+
+const printDays = computed(() =>
+  dayDefs.value
+    .map((def) => ({ def, sessions: sessionsFor(byDay.value[def.date] || []) }))
+    .filter((d) => d.sessions.length > 0),
+);
 
 const curDef = computed(() => papersStore.dayDef(day.value));
 
@@ -76,20 +84,15 @@ function doPrint() {
     <div class="sched-body">
       <div class="print-header">
         <div class="ph-mark">My ICLR Schedule</div>
-        <div class="ph-sub">
-          <template v-if="curDef">
-            {{ curDef.long }} · {{ curDef.pretty }} ·
-          </template>
-          {{ curPapers.length }} papers saved
-        </div>
+        <div class="ph-sub">{{ savedPapers.length }} papers saved</div>
       </div>
 
-      <div v-if="curPapers.length" class="sched-tools">
-        <button class="btn" @click="doPrint">Print</button>
+      <div v-if="savedPapers.length" class="sched-tools">
+        <button class="btn" @click="doPrint">Print all days</button>
       </div>
 
       <template v-if="curPapers.length === 0">
-        <div class="empty">
+        <div class="empty screen-only">
           <span class="mark">Nothing saved yet</span>
           <div style="margin-bottom: 18px">
             Browse papers and tap + to plan your
@@ -101,30 +104,62 @@ function doPrint() {
         </div>
       </template>
       <template v-else>
-        <div v-for="sess in sessions" :key="sess.session" class="sess-block">
-          <div class="sess-head">
-            <div>
-              <div class="sess-name">{{ sess.session }}</div>
-              <div class="sess-time">{{ timeLabelOf(sess) }}</div>
+        <div class="screen-only">
+          <div v-for="sess in sessions" :key="sess.session" class="sess-block">
+            <div class="sess-head">
+              <div>
+                <div class="sess-name">{{ sess.session }}</div>
+                <div class="sess-time">{{ timeLabelOf(sess) }}</div>
+              </div>
+              <div class="sess-counts">{{ sess.papers.length }}</div>
             </div>
-            <div class="sess-counts">{{ sess.papers.length }}</div>
-          </div>
-          <div
-            v-for="p in sess.papers"
-            :key="p.id"
-            class="check-row"
-            @click="ui.openPaper(p.id)"
-          >
-            <div class="chk-pos">{{ p.poster_pos || "ORAL" }}</div>
-            <div>
-              <div class="chk-title">{{ p.title }}</div>
-            </div>
-            <div class="chk-tier" :class="tierClass(p)">
-              {{ tierText(p) }}
+            <div
+              v-for="p in sess.papers"
+              :key="p.id"
+              class="check-row"
+              @click="ui.openPaper(p.id)"
+            >
+              <div class="chk-pos">{{ p.poster_pos || "ORAL" }}</div>
+              <div>
+                <div class="chk-title">{{ p.title }}</div>
+              </div>
+              <div class="chk-tier" :class="tierClass(p)">
+                {{ tierText(p) }}
+              </div>
             </div>
           </div>
         </div>
       </template>
+
+      <div class="print-all">
+        <div v-for="d in printDays" :key="d.def.date" class="print-day">
+          <div class="print-day-head">
+            {{ d.def.long }} · {{ d.def.pretty }}
+          </div>
+          <div
+            v-for="sess in d.sessions"
+            :key="sess.session"
+            class="sess-block"
+          >
+            <div class="sess-head">
+              <div>
+                <div class="sess-name">{{ sess.session }}</div>
+                <div class="sess-time">{{ timeLabelOf(sess) }}</div>
+              </div>
+              <div class="sess-counts">{{ sess.papers.length }}</div>
+            </div>
+            <div v-for="p in sess.papers" :key="p.id" class="check-row">
+              <div class="chk-pos">{{ p.poster_pos || "ORAL" }}</div>
+              <div>
+                <div class="chk-title">{{ p.title }}</div>
+              </div>
+              <div class="chk-tier" :class="tierClass(p)">
+                {{ tierText(p) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
