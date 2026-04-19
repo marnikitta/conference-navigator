@@ -77,8 +77,9 @@ const instCounts = computed<Record<string, number>>(() => {
 
 // --- topic relevance ranking -------------------------------------------
 
-// Same strategy as Explore's reco sort (see RANKING_STRATEGY in
-// useSimilarity.ts) so filter order stays consistent with the feed.
+// Pin topic ordering to the plain centroid strategy so the filter list
+// stays stable across re-renders. The feed's reco sort may bootstrap-
+// sample, but topics randomizing each time the drawer opens is jarring.
 const rankCtx = computed(() =>
   buildRankingContext(
     collectSavedVecs(
@@ -86,6 +87,7 @@ const rankCtx = computed(() =>
       (id) => savedIds.value.has(id),
       (p) => papersStore.vecFor(p),
     ),
+    "centroid",
   ),
 );
 
