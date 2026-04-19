@@ -18,8 +18,6 @@ import {
   rankingScoreFromClusters,
   type Cluster,
 } from "./useSimilarity";
-import { groupByTopicRuns } from "./usePapers";
-import type { Paper } from "@/types";
 
 const SAVED_IDS = [
   "10006476",
@@ -199,44 +197,6 @@ function meanCosToCentroid(
   return s / slice.length;
 }
 
-// Pretend-Paper shape for feeding into groupByTopicRuns. It only reads
-// id + topic_cluster, so we hand it the minimum.
-function asPaper(c: Candidate): Paper {
-  return { id: c.id, topic_cluster: c.topic } as unknown as Paper;
-}
-
-interface BlockingStats {
-  groups: number;
-  maxGroupSize: number;
-  singles: number;
-  inGroupShare: number;
-}
-
-function blockingStats(ranked: Candidate[], n: number): BlockingStats {
-  const view = ranked.slice(0, n).map(asPaper);
-  const blocks = groupByTopicRuns(view);
-  let groups = 0;
-  let singles = 0;
-  let maxGroupSize = 0;
-  let inGroup = 0;
-  for (const b of blocks) {
-    if (b.kind === "group") {
-      groups++;
-      if (b.papers.length > maxGroupSize) maxGroupSize = b.papers.length;
-      inGroup += b.papers.length;
-    } else {
-      singles++;
-    }
-  }
-  const total = view.length;
-  return {
-    groups,
-    maxGroupSize,
-    singles,
-    inGroupShare: total > 0 ? inGroup / total : 0,
-  };
-}
-
 // Top-K set overlap between two runs. Returns |A ∩ B|.
 function topKOverlap(a: Candidate[], b: Candidate[], k: number): number {
   const setA = new Set(a.slice(0, k).map((c) => c.id));
@@ -348,15 +308,14 @@ describe.skipIf(!process.env.RECO_DEBUG)("reco strategies (offline)", () => {
     ];
 
     const K = 50;
-    const BLOCK_N = 200;
     console.log(
-      `\nRanking ${candidates.length} candidates against ${savedVecs.length} saved (top ${K}; blocking on first ${BLOCK_N})\n`,
+      `\nRanking ${candidates.length} candidates against ${savedVecs.length} saved (top ${K})\n`,
     );
     console.log(
-      "strategy                                  │ topics │ run │ mean★ │ coh   │ grps │ max │ in-grp",
+      "strategy                                  │ topics │ run │ mean★ │ coh  ",
     );
     console.log(
-      "──────────────────────────────────────────┼────────┼─────┼───────┼───────┼──────┼─────┼───────",
+      "──────────────────────────────────────────┼────────┼─────┼───────┼──────",
     );
     const rankedByStrategy: Record<string, Candidate[]> = {};
     for (const s of strategies) {
@@ -366,9 +325,8 @@ describe.skipIf(!process.env.RECO_DEBUG)("reco strategies (offline)", () => {
       const run = longestTopicRun(ranked, K);
       const mr = meanRating(ranked, K);
       const coh = meanCosToCentroid(ranked, K, cVec);
-      const b = blockingStats(ranked, BLOCK_N);
       console.log(
-        `${s.name.padEnd(41)} │ ${String(topics).padStart(6)} │ ${String(run).padStart(3)} │ ${mr.toFixed(2).padStart(5)} │ ${coh.toFixed(3).padStart(5)} │ ${String(b.groups).padStart(4)} │ ${String(b.maxGroupSize).padStart(3)} │ ${(b.inGroupShare * 100).toFixed(0).padStart(4)}%`,
+        `${s.name.padEnd(41)} │ ${String(topics).padStart(6)} │ ${String(run).padStart(3)} │ ${mr.toFixed(2).padStart(5)} │ ${coh.toFixed(3).padStart(5)}`,
       );
     }
 
@@ -386,30 +344,6 @@ describe.skipIf(!process.env.RECO_DEBUG)("reco strategies (offline)", () => {
         console.log(
           `  ${String(i + 1).padStart(2)}. ★${r}  ${topic}  ${title}`,
         );
-      }
-    }
-
-    // Show how the UI would group the opinionated top 50 into blocks.
-    const winner = "OPINIONATED: cluster-LSE + rating + MMR";
-    console.log(`\n── ${winner}: UI blocks on top 50 ──`);
-    const opTop50 = rankedByStrategy[winner].slice(0, 50).map(asPaper);
-    const opBlocks = groupByTopicRuns(opTop50);
-    const titleById = new Map<string, Candidate>(
-      rankedByStrategy[winner].map((c) => [c.id, c]),
-    );
-    for (const b of opBlocks) {
-      if (b.kind === "group") {
-        console.log(`  [GROUP] ${b.topic}  ×${b.papers.length}`);
-        for (const pp of b.papers) {
-          const c = titleById.get(pp.id)!;
-          const t = c.title.length > 55 ? c.title.slice(0, 52) + "…" : c.title;
-          console.log(`    • ★${c.rating?.toFixed(1) ?? "—"}  ${t}`);
-        }
-      } else {
-        const c = titleById.get(b.paper.id)!;
-        const topic = (c.topic ?? "—").slice(0, 22).padEnd(22);
-        const t = c.title.length > 55 ? c.title.slice(0, 52) + "…" : c.title;
-        console.log(`  [—]  ★${c.rating?.toFixed(1) ?? "—"} ${topic} ${t}`);
       }
     }
 

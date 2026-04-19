@@ -145,26 +145,37 @@ export function qualityPrior(rating: number | null): number {
 // equivalent to belonging to a 2× larger saved cluster. Big enough to
 // reliably surface quality; not so big that off-topic 8.0s swamp
 // on-topic 6.5s.
+// Tune: 0.0–2.0. Presets: 0.3 topic-first (ratings barely nudge),
+// 0.8 balanced (current), 1.5 quality-first (ratings dominate ties).
 const OPINIONATED_RATING_WEIGHT = 0.8;
 
 // MMR diversification. λ closer to 1 → relevance-dominant (blocky);
 // closer to 0 → diversity-dominant (random-feeling). 0.75 is the
 // sweet spot for "same interest, but don't stack 10 near-duplicates".
+// Tune: 0.50–0.95. Presets: 0.60 exploratory (broad mix),
+// 0.75 balanced (current), 0.90 focused (allows small duplicate stacks).
 const OPINIONATED_LAMBDA = 0.75;
 
 // Pool size for MMR. Only the top N by relevance are reordered; the
 // rest fall through unchanged. MMR is O(pick·pool·dim) — increasing
 // these costs quickly. 250/120 covers a typical first page with
 // comfortable headroom without burning a second of main-thread time.
+// Tune: 100–500. Presets: 150 snappy (shallower diversity reach),
+// 250 balanced (current), 400 thorough (pulls from deeper tail, slower).
 const OPINIONATED_POOL = 250;
 
 // How many items to pick via MMR. Beyond this, the relevance-sorted
 // tail is returned as-is.
+// Tune: 50–200. Presets: 60 short curated feed, 120 balanced (current),
+// 200 long feed (MMR governs more of the list). Keep ≤ POOL.
 const OPINIONATED_PICK = 120;
 
 // Cluster-LSE temperature used inside the opinionated mix. Kept low so
 // the cluster score preserves a meaningful relevance signal — MMR does
 // the diversification, not τ.
+// Tune: 0.1–1.0. Presets: 0.15 sharp (hard max, blocky bands),
+// 0.3 balanced (current), 0.6 smooth (credits papers near multiple
+// clusters — softer boundaries, weaker dominant-cluster signal).
 const OPINIONATED_TAU = 0.3;
 
 // Jitter applied to the relevance score so repeat visits don't show the
@@ -173,6 +184,8 @@ const OPINIONATED_TAU = 0.3;
 // about 6% of the span — enough to swap near-equal neighbours without
 // moving top picks noticeably. Stable across filter/query changes
 // within the same page session (see VEC_NOISE below).
+// Tune: 0.0–0.3. Presets: 0.00 deterministic (no shuffle across
+// reloads), 0.10 subtle (current), 0.20 chatty (top picks can swap).
 const OPINIONATED_NOISE = 0.1;
 
 // Per-vec noise cache, module-scoped and keyed by Float32Array

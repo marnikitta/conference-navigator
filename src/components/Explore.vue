@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onActivated, ref, watch } from "vue";
-import { onBeforeRouteLeave, useRoute } from "vue-router";
+import { onBeforeRouteLeave } from "vue-router";
 
 defineOptions({ name: "Explore" });
 import { storeToRefs } from "pinia";
@@ -13,24 +13,21 @@ import {
   collectSavedVecs,
   type RankingContext,
 } from "@/composables/useSimilarity";
-import { groupByTopicRuns, truncate } from "@/composables/usePapers";
-import type { Block, Filters, Paper, Sort } from "@/types";
+import { truncate } from "@/composables/usePapers";
+import type { Filters, Paper, Sort } from "@/types";
 import PaperRow from "./PaperRow.vue";
 import FilterDrawer from "./FilterDrawer.vue";
 
 const PAGE = 500;
-const PAGE_BLOCKS = 200;
 
 const ui = useUiStore();
 const papersStore = usePapersStore();
 const saved = useSavedStore();
-const route = useRoute();
 const { filters, sort, query, filterDrawerOpen, seedPaperId } = storeToRefs(ui);
 const { papers, embeddings } = storeToRefs(papersStore);
 const { idSet: savedIds } = storeToRefs(saved);
 
-const initialGrouped = sort.value === "reco" && !filters.value.clusters?.length;
-const shown = ref(initialGrouped ? PAGE_BLOCKS : PAGE);
+const shown = ref(PAGE);
 
 const savedPapers = computed(() =>
   papers.value.filter((p) => savedIds.value.has(p.id)),
@@ -177,23 +174,7 @@ const sorted = computed<Paper[]>(() => {
   return copy;
 });
 
-const grouped = computed(
-  () => sort.value === "reco" && !filters.value.clusters?.length,
-);
-
-const blocks = computed<Block[]>(() =>
-  grouped.value ? groupByTopicRuns(sorted.value) : [],
-);
-
-const visibleBlocks = computed(() => blocks.value.slice(0, shown.value));
-
 const visibleSorted = computed(() => sorted.value.slice(0, shown.value));
-
-const totalUnits = computed(() =>
-  grouped.value ? blocks.value.length : sorted.value.length,
-);
-
-const pageSize = computed(() => (grouped.value ? PAGE_BLOCKS : PAGE));
 
 interface Chip {
   key: string;
@@ -294,11 +275,7 @@ function openFilters() {
 }
 
 function showMore() {
-  shown.value += pageSize.value;
-}
-
-function topicHref(topic: string) {
-  return { path: "/", query: { ...route.query, cluster: topic } };
+  shown.value += PAGE;
 }
 
 // When Explore is cached by <keep-alive> and the user navigates to
@@ -314,7 +291,7 @@ onActivated(() => {
   routeActive = true;
 });
 const resetShown = () => {
-  if (routeActive) shown.value = pageSize.value;
+  if (routeActive) shown.value = PAGE;
 };
 watch(filters, resetShown, { deep: true });
 watch(sort, resetShown);
@@ -376,26 +353,6 @@ watch(seedPaperId, resetShown);
       <div class="empty">
         <span class="mark">No matches</span>
         Try loosening filters or clearing your search.
-      </div>
-    </template>
-    <template v-else-if="grouped">
-      <template v-for="(b, i) in visibleBlocks" :key="i">
-        <div v-if="b.kind === 'group'" class="topic-block">
-          <router-link class="topic-head" :to="topicHref(b.topic)">
-            <span class="topic-name">{{ b.topic }}</span>
-            <span class="topic-count">· {{ b.papers.length }}</span>
-          </router-link>
-          <PaperRow v-for="p in b.papers" :key="p.id" :paper="p" />
-        </div>
-        <PaperRow v-else :paper="b.paper" />
-      </template>
-      <div v-if="shown < totalUnits" class="load-more">
-        <button class="btn" @click="showMore">
-          Show {{ Math.min(pageSize, totalUnits - shown) }} more
-        </button>
-        <span class="load-more-count">
-          {{ Math.min(shown, totalUnits) }} of {{ totalUnits }} groups
-        </span>
       </div>
     </template>
     <template v-else>
