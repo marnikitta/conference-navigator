@@ -111,10 +111,7 @@ const sorted = computed<Paper[]>(() => {
     }
   } else if (s === "similar" && seedVec.value) {
     const seed = seedVec.value;
-    const excludeId = seedPaperId.value;
     copy.sort((a, b) => {
-      if (a.id === excludeId) return 1;
-      if (b.id === excludeId) return -1;
       const va = papersStore.vecFor(a);
       const vb = papersStore.vecFor(b);
       const sa = va ? cosine(seed, va) : -1;
