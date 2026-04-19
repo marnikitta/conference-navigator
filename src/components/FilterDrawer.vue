@@ -37,7 +37,6 @@ const EVENT_TYPES = [
 
 const insts = computed(() => uniqueInsts(props.papers));
 const sessions = computed(() => uniqueSessions(props.papers));
-const minRating = computed(() => filters.value.minRating || 0);
 
 // --- counts per filter option -------------------------------------------
 
@@ -152,15 +151,6 @@ function toggleOpt<K extends keyof Filters>(
   ui.setFilters({ ...filters.value, [key]: Array.from(cur) } as Filters);
 }
 
-function setKey<K extends keyof Filters>(key: K, val: Filters[K]) {
-  ui.setFilters({ ...filters.value, [key]: val });
-}
-
-function onRatingInput(e: Event) {
-  const v = parseFloat((e.target as HTMLInputElement).value);
-  setKey("minRating", v);
-}
-
 function toggleSavedOnly() {
   const on = !filters.value.savedOnly;
   ui.setFilters({ ...filters.value, savedOnly: on, showSaved: false });
@@ -252,21 +242,6 @@ function close() {
             {{ s }}<span class="filt-count">{{ sessionCounts[s] || 0 }}</span>
           </button>
         </div>
-      </div>
-
-      <div class="filt-sec">
-        <div class="filt-title">
-          Min review rating · {{ minRating.toFixed(1) }}
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="9"
-          step="0.25"
-          :value="minRating"
-          class="slider"
-          @input="onRatingInput"
-        />
       </div>
 
       <div class="filt-sec">

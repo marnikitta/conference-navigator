@@ -107,7 +107,6 @@ export interface Filters {
   insts?: string[];
   sessions?: string[];
   spotlightOnly?: boolean;
-  minRating?: number;
   savedOnly?: boolean;
   showSaved?: boolean;
 }

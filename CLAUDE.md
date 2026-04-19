@@ -63,8 +63,8 @@ Four routes, each its own page (no overlays):
   (opinionated recommender — see "Recommender" below; falls back to
   rating when nothing is saved), `similar` (cosine to a seed paper —
   implicit from the `seed` URL param), `rating`, `time`, `poster_id`.
-  Filter drawer supports day, session, event type, min rating,
-  saved-only, topic cluster, institution.
+  Filter drawer supports day, session, event type, saved-only,
+  topic cluster, institution.
 - **`/schedule` — My schedule**: saved papers for the active day,
   grouped by session, ordered by poster position. Day sub-tabs
   (inferred from the data, see below) are in-memory only — not in the
@@ -123,7 +123,7 @@ chips (stable, not re-ordered per visit).
 - `/` — Explore. Query params are the single source of truth for
   filters, sort, search, and seed paper: `q`, `sort`, `seed`, repeat
   keys `day=2026-04-24&day=2026-04-25`, `event`, `cluster`, `inst`,
-  `session`, plus flags `spotlight=1`, `saved=1`, `minRating=7.5`.
+  `session`, plus flags `spotlight=1`, `saved=1`.
   Writes are `router.replace` so filter tweaking doesn't pollute
   history. `sort=similar` is **never emitted** — the presence of
   `seed` implies it.

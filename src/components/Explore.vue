@@ -123,8 +123,6 @@ const filtered = computed<Paper[]>(() => {
     )
       return false;
     if (f.spotlightOnly && p.tier !== "Spotlight") return false;
-    if (f.minRating && (p.rating == null || p.rating < f.minRating))
-      return false;
     if (f.savedOnly && !savedIds.value.has(p.id)) return false;
     // Saved papers are hidden by default; "Show saved" opts back in.
     // `savedOnly` implies saved are visible regardless.
@@ -217,12 +215,6 @@ const chips = computed<Chip[]>(() => {
       key: "spot",
       label: "Spotlight only",
       rm: () => ui.setFilters({ ...f, spotlightOnly: false }),
-    });
-  if (f.minRating)
-    out.push({
-      key: "mr",
-      label: `≥ ${f.minRating.toFixed(1)}`,
-      rm: () => ui.setFilters({ ...f, minRating: 0 }),
     });
   if (f.savedOnly)
     out.push({

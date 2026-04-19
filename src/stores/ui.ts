@@ -10,7 +10,7 @@ type QueryOut = Record<string, string | string[]>;
 interface FilterCodec<K extends keyof Filters> {
   key: K;
   urlKey: string;
-  kind: "array" | "bool" | "number";
+  kind: "array" | "bool";
 }
 
 // One source of truth for filter ⇄ URL mapping. Adding a filter means one
@@ -22,7 +22,6 @@ const FILTER_CODECS: FilterCodec<keyof Filters>[] = [
   { key: "insts", urlKey: "inst", kind: "array" },
   { key: "sessions", urlKey: "session", kind: "array" },
   { key: "spotlightOnly", urlKey: "spotlight", kind: "bool" },
-  { key: "minRating", urlKey: "minRating", kind: "number" },
   { key: "savedOnly", urlKey: "saved", kind: "bool" },
   // Saved papers are hidden from Explore by default. Opt back in with
   // ?showSaved=1; no URL param is needed to express the default.
@@ -44,13 +43,6 @@ function stringParam(v: unknown): string | undefined {
   return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
-function numberParam(v: unknown): number | undefined {
-  const s = stringParam(v);
-  if (s == null) return undefined;
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : undefined;
-}
-
 function parseFilters(q: Record<string, unknown>): Filters {
   const f: Record<string, unknown> = {};
   for (const c of FILTER_CODECS) {
@@ -60,9 +52,6 @@ function parseFilters(q: Record<string, unknown>): Filters {
       if (arr.length) f[c.key] = arr;
     } else if (c.kind === "bool") {
       if (stringParam(v) === "1") f[c.key] = true;
-    } else {
-      const n = numberParam(v);
-      if (n != null && n > 0) f[c.key] = n;
     }
   }
   return f as Filters;
@@ -77,8 +66,6 @@ function filtersToQuery(f: Filters): QueryOut {
       if (Array.isArray(v) && v.length) out[c.urlKey] = [...(v as string[])];
     } else if (c.kind === "bool") {
       if (v) out[c.urlKey] = "1";
-    } else if (typeof v === "number" && v > 0) {
-      out[c.urlKey] = String(v);
     }
   }
   return out;
