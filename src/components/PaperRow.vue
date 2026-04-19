@@ -77,6 +77,9 @@ function toggle() {
         </template>
       </div>
       <div class="authors">{{ authorLine }}</div>
+      <div v-if="paper.summary_short" class="summary-short">
+        {{ paper.summary_short }}
+      </div>
     </div>
     <div class="right">
       <button

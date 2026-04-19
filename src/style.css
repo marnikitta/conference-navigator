@@ -335,6 +335,17 @@ a {
   color: var(--muted);
   margin-top: 6px;
 }
+.paper-row .summary-short {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-top: 6px;
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .paper-row .right {
   display: flex;
   flex-direction: column;
@@ -570,6 +581,13 @@ a {
   border-radius: 99px;
   border: 1px solid var(--rule);
   color: var(--muted);
+}
+.det-summary {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  margin-bottom: 24px;
+  text-wrap: pretty;
 }
 .det-abstract {
   font-size: 14px;

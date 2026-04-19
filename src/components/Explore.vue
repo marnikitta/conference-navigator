@@ -37,9 +37,11 @@ const savedPapers = computed(() =>
 );
 
 // Snapshot of the ranking context used by `reco`, plus a pre-computed
-// order of every paper under that context. Rebuilding the ranking is
-// the expensive step (MMR is O(pick·pool·dim)), so we pin it to
-// saved-set / embeddings changes only — filter/sort/query tweaks reuse
+// order of every paper under that context. The snapshot is taken once
+// per page load and deliberately *not* refreshed when the user saves
+// or unsaves a paper — otherwise the feed reshuffles in-place while
+// they're reading it. A page reload (or the embeddings first arriving)
+// gets a fresh snapshot; until then, filter/sort/query tweaks reuse
 // the cached order via `rankOrder`. The active strategy is a
 // code-level toggle in `useSimilarity.ts` — see `RANKING_STRATEGY`.
 const rankCtx = ref<RankingContext | null>(null);
@@ -92,7 +94,6 @@ function snapshotRanking() {
 }
 snapshotRanking();
 watch(embeddings, snapshotRanking);
-watch(savedIds, snapshotRanking, { deep: true });
 
 const seedPaper = computed<Paper | null>(() => {
   if (!seedPaperId.value) return null;

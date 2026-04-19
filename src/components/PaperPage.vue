@@ -173,9 +173,15 @@ function toggle() {
       <span v-for="kw in paper.keywords" :key="kw" class="kw">{{ kw }}</span>
     </div>
 
-    <div v-if="paper.abstract" class="det-abstract">
-      {{ paper.abstract }}
-    </div>
+    <template v-if="paper.summary_long">
+      <div class="det-section-title">Summary</div>
+      <div class="det-summary">{{ paper.summary_long }}</div>
+    </template>
+
+    <template v-if="paper.abstract">
+      <div class="det-section-title">Abstract</div>
+      <div class="det-abstract">{{ paper.abstract }}</div>
+    </template>
 
     <div class="det-links">
       <a

@@ -38,6 +38,8 @@ function adaptPaper(raw: RawPaper): Paper {
     event_type: raw.event_type,
     tier: raw.tier,
     topic_cluster: meta.topic ?? null,
+    summary_short: meta.summary_short ?? null,
+    summary_long: meta.summary_long ?? null,
     session: pres.session || null,
     room: pres.room || "",
     poster_pos: pres.poster_position || null,

@@ -48,6 +48,8 @@ export interface RawOpenreview {
 export interface RawMetadata {
   topic_id?: number;
   topic?: string | null;
+  summary_short?: string | null;
+  summary_long?: string | null;
 }
 
 export interface RawPaper {
@@ -76,6 +78,8 @@ export interface Paper {
   event_type?: string;
   tier: Tier;
   topic_cluster: string | null;
+  summary_short: string | null;
+  summary_long: string | null;
   session: string | null;
   room: string;
   poster_pos: string | null;
