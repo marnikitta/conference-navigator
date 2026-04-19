@@ -6,6 +6,7 @@ import { useUiStore } from "@/stores/ui";
 import { useSavedStore } from "@/stores/saved";
 import { usePapersStore } from "@/stores/papers";
 import { encodeIds, decodeIds } from "@/lib/idCodec";
+import QrCode from "@/components/QrCode.vue";
 
 function parseIds(text: string): string[] {
   if (!text) return [];
@@ -200,36 +201,32 @@ function selectAllShare(e: FocusEvent) {
       <strong>Merge</strong> adds the {{ incomingIds.length }} incoming paper{{
         incomingIds.length === 1 ? "" : "s"
       }}
-      to your saved list without removing anything.
-      <strong>Overwrite</strong> replaces your local list — the
-      <span class="diff-del-ink"
-        >{{ importDels.length }} paper{{
-          importDels.length === 1 ? "" : "s"
-        }}</span
+      to your saved list without removing anything.<template
+        v-if="importDels.length > 0"
       >
-      below marked <code>−</code> will be removed from this browser.
+        <strong>Overwrite</strong> replaces your local list — the
+        <span class="diff-del-ink"
+          >{{ importDels.length }} paper{{
+            importDels.length === 1 ? "" : "s"
+          }}</span
+        >
+        below marked <code>−</code> will be removed from this browser.
+      </template>
     </div>
 
     <div class="exp-actions-row">
       <button class="btn" @click="cancelImport">Cancel</button>
       <button
+        v-if="importDels.length > 0"
         class="btn danger"
-        :disabled="importAdds.length === 0 && importDels.length === 0"
-        :class="{
-          disabled: importAdds.length === 0 && importDels.length === 0,
-        }"
         @click="doOverwrite"
       >
         Overwrite
-        <span
-          v-if="importAdds.length > 0 || importDels.length > 0"
-          class="btn-delta"
-        >
-          (<span v-if="importAdds.length > 0">+{{ importAdds.length }}</span>
-          <span v-if="importAdds.length > 0 && importDels.length > 0"
-            >,&nbsp;</span
-          ><span v-if="importDels.length > 0">−{{ importDels.length }}</span
-          >)
+        <span class="btn-delta">
+          (<span v-if="importAdds.length > 0">+{{ importAdds.length }}</span
+          ><span v-if="importAdds.length > 0">,&nbsp;</span>−{{
+            importDels.length
+          }})
         </span>
       </button>
       <button
@@ -306,6 +303,11 @@ function selectAllShare(e: FocusEvent) {
       >
         {{ linkCopied ? "Copied ✓" : "Copy link" }}
       </button>
+    </div>
+
+    <div v-if="shareUrl" class="qr-card">
+      <QrCode :value="shareUrl" :size="220" />
+      <div class="qr-caption">Scan to import on another device</div>
     </div>
 
     <details

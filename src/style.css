@@ -1080,6 +1080,41 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* QR code card */
+.qr-card {
+  margin: 20px auto 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+.qr-card {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+}
+.qr-caption {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.qr-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.qr-svg .qr-bg {
+  fill: var(--bg);
+}
+.qr-svg .qr-modules {
+  fill: var(--ink);
+}
+
 /* Print — schedule only */
 .print-header,
 .print-all {
