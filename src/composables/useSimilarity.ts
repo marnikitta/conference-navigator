@@ -162,7 +162,7 @@ const OPINIONATED_LAMBDA = 0.80;
 // comfortable headroom without burning a second of main-thread time.
 // Tune: 100–500. Presets: 150 snappy (shallower diversity reach),
 // 250 balanced (current), 400 thorough (pulls from deeper tail, slower).
-const OPINIONATED_POOL = 250;
+const OPINIONATED_POOL = 150;
 
 // How many items to pick via MMR. Beyond this, the relevance-sorted
 // tail is returned as-is.

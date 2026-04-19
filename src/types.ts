@@ -63,6 +63,7 @@ export interface RawPaper {
   materials?: RawMaterials;
   openreview?: RawOpenreview | null;
   metadata?: RawMetadata;
+  related_event_ids?: string[];
 }
 
 export interface PaperAuthor {
@@ -96,6 +97,7 @@ export interface Paper {
   code_url: string | null;
   slides_url: string | null;
   poster_image_url: string | null;
+  related_event_ids: string[];
 }
 
 export interface Filters {

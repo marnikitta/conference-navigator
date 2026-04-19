@@ -56,6 +56,7 @@ function adaptPaper(raw: RawPaper): Paper {
     code_url: mats.code_url || null,
     slides_url: mats.slides_url || null,
     poster_image_url: mats.poster_image_url || null,
+    related_event_ids: raw.related_event_ids ?? [],
   };
 }
 

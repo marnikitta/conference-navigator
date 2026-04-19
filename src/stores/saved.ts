@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { computed } from "vue";
 import { useLocalStorage } from "@vueuse/core";
+import { usePapersStore } from "./papers";
 
 export const useSavedStore = defineStore("saved", () => {
   const savedIds = useLocalStorage<string[]>("cn_saved", []);
@@ -12,8 +13,25 @@ export const useSavedStore = defineStore("saved", () => {
 
   function toggle(id: string): void {
     const i = savedIds.value.indexOf(id);
-    if (i >= 0) savedIds.value.splice(i, 1);
-    else savedIds.value.push(id);
+    if (i >= 0) {
+      savedIds.value.splice(i, 1);
+      return;
+    }
+    // Save-only propagation: saving an oral also saves its poster sibling
+    // (and vice versa) so you don't miss the other half of the event.
+    // Unsave stays local — removing one doesn't touch the sibling.
+    const papers = usePapersStore();
+    const paper = papers.papers.find((p) => p.id === id);
+    const related = paper?.related_event_ids ?? [];
+    const seen = new Set(savedIds.value);
+    savedIds.value.push(id);
+    seen.add(id);
+    for (const rid of related) {
+      if (!seen.has(rid)) {
+        savedIds.value.push(rid);
+        seen.add(rid);
+      }
+    }
   }
 
   function importIds(ids: string[]): void {
