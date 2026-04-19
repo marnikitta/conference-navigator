@@ -106,21 +106,25 @@ export function rankingScoreFromClusters(
 // Ranking strategies
 // -------------------
 //
-// Two ways to turn a user's saved papers into a "recommend" score:
+// Three ways to turn a user's saved papers into a "recommend" score:
 //
 //   - "centroid": single average embedding of saved papers. Simple and
 //     stable; best when saved papers share a coherent theme.
+//   - "bootstrap_centroid": like "centroid", but keeps each saved vec
+//     with probability 0.5 (at least one is always kept). Each
+//     snapshot produces a slightly different ordering — useful for
+//     surfacing variety around the user's core interest.
 //   - "clusters": leader-cluster the saved papers and score by
 //     `rankingScoreFromClusters` (log-weighted cosine to the best
 //     non-singleton cluster). More forgiving of a heterogeneous save
 //     list, at the cost of ignoring one-off saves.
 //
 // `RANKING_STRATEGY` is a code-level toggle; it is not surfaced in the
-// UI. Flip it here and rebuild to try the other mode.
+// UI. Flip it here and rebuild to try another mode.
 
-export type RankingStrategy = "centroid" | "clusters";
+export type RankingStrategy = "centroid" | "bootstrap_centroid" | "clusters";
 
-export const RANKING_STRATEGY: RankingStrategy = "centroid";
+export const RANKING_STRATEGY: RankingStrategy = "bootstrap_centroid";
 
 export interface RankingContext {
   /** Score an embedding against the saved signal. Higher = more relevant. */
@@ -150,6 +154,25 @@ export function buildRankingContext(
         active
           ? `[reco:centroid] 1 centroid from ${vecs.length} saved paper${vecs.length === 1 ? "" : "s"}`
           : "[reco:centroid] no saved signal",
+    };
+  }
+
+  if (strategy === "bootstrap_centroid") {
+    let sample = vecs.filter(() => Math.random() < 0.5);
+    if (sample.length === 0 && vecs.length > 0) {
+      sample = [vecs[Math.floor(Math.random() * vecs.length)]];
+    }
+    const c = centroid(sample);
+    const active = c !== null && vecs.length > 0;
+    const kept = sample.length;
+    return {
+      score: c ? (v) => cosine(c, v) : () => -Infinity,
+      active,
+      strategy,
+      describe: () =>
+        active
+          ? `[reco:bootstrap_centroid] 1 centroid from ${kept}/${vecs.length} saved (sampled p=0.5)`
+          : "[reco:bootstrap_centroid] no saved signal",
     };
   }
 

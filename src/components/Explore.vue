@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onActivated, ref, watch } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
+import { onBeforeRouteLeave, useRoute } from "vue-router";
 
 defineOptions({ name: "Explore" });
 import { storeToRefs } from "pinia";
@@ -23,6 +23,7 @@ const PAGE_BLOCKS = 200;
 const ui = useUiStore();
 const papersStore = usePapersStore();
 const saved = useSavedStore();
+const route = useRoute();
 const { filters, sort, query, filterDrawerOpen, seedPaperId } = storeToRefs(ui);
 const { papers, embeddings } = storeToRefs(papersStore);
 const { idSet: savedIds } = storeToRefs(saved);
@@ -270,8 +271,8 @@ function showMore() {
   shown.value += pageSize.value;
 }
 
-function openTopic(topic: string) {
-  ui.setFilters({ ...filters.value, clusters: [topic] });
+function topicHref(topic: string) {
+  return { path: "/", query: { ...route.query, cluster: topic } };
 }
 
 // When Explore is cached by <keep-alive> and the user navigates to
@@ -359,10 +360,10 @@ watch(seedPaperId, resetShown);
     <template v-else-if="grouped">
       <template v-for="(b, i) in visibleBlocks" :key="i">
         <div v-if="b.kind === 'group'" class="topic-block">
-          <button class="topic-head" @click="openTopic(b.topic)">
+          <router-link class="topic-head" :to="topicHref(b.topic)">
             <span class="topic-name">{{ b.topic }}</span>
             <span class="topic-count">· {{ b.papers.length }}</span>
-          </button>
+          </router-link>
           <PaperRow v-for="p in b.papers" :key="p.id" :paper="p" />
         </div>
         <PaperRow v-else :paper="b.paper" />

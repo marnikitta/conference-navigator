@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import { tierText, tierClass } from "@/composables/usePapers";
@@ -8,7 +7,6 @@ import type { Paper } from "@/types";
 
 const props = defineProps<{ paper: Paper }>();
 
-const ui = useUiStore();
 const papersStore = usePapersStore();
 const saved = useSavedStore();
 
@@ -43,18 +41,18 @@ const locationLabel = computed(
   () => props.paper.poster_pos || props.paper.room || "",
 );
 
-function open() {
-  ui.openPaper(props.paper.id);
-}
-
-function toggle(e: MouseEvent) {
-  e.stopPropagation();
+function toggle() {
   saved.toggle(props.paper.id);
 }
 </script>
 
 <template>
-  <div :class="rowClass" @click="open">
+  <div :class="rowClass">
+    <router-link
+      class="paper-row-link"
+      :to="`/paper/${paper.id}`"
+      :aria-label="paper.title"
+    />
     <div class="main">
       <div class="title">{{ paper.title }}</div>
       <div class="meta-line">

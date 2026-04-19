@@ -69,32 +69,6 @@ const similar = computed<SimilarRow[]>(() => {
 function toggle() {
   if (paper.value) saved.toggle(paper.value.id);
 }
-
-function openSim(id: string) {
-  ui.openPaper(id);
-}
-
-function showAllSimilar() {
-  if (paper.value) ui.showAllSimilar(paper.value.id);
-}
-
-function filterDay() {
-  if (paper.value?.day) ui.applyExploreFilter({ days: [paper.value.day] });
-}
-
-function filterSession() {
-  if (paper.value?.session)
-    ui.applyExploreFilter({ sessions: [paper.value.session] });
-}
-
-function filterCluster() {
-  if (paper.value?.topic_cluster)
-    ui.applyExploreFilter({ clusters: [paper.value.topic_cluster] });
-}
-
-function filterInst(inst: string) {
-  if (inst) ui.applyExploreFilter({ insts: [inst] });
-}
 </script>
 
 <template>
@@ -113,14 +87,14 @@ function filterInst(inst: string) {
     <div class="det-authors">
       <span v-for="(a, i) in paper.authors" :key="i">
         {{ a.name }}
-        <button
+        <router-link
           v-if="a.inst"
           class="a-inst a-inst-link"
           title="Filter by this institution"
-          @click="filterInst(a.inst)"
+          :to="{ path: '/', query: { inst: a.inst } }"
         >
           {{ a.inst }}
-        </button>
+        </router-link>
         <template v-if="i < paper.authors.length - 1"> · </template>
       </span>
     </div>
@@ -128,33 +102,45 @@ function filterInst(inst: string) {
     <div class="det-kv">
       <div v-if="whenLabel" class="kv">
         <div class="k">When</div>
-        <button class="v v-link" title="Open in Explore" @click="filterDay">
+        <router-link
+          class="v v-link"
+          title="Open in Explore"
+          :to="{ path: '/', query: { day: paper.day } }"
+        >
           {{ whenLabel }}
-        </button>
+        </router-link>
       </div>
       <div v-if="whereLabel" class="kv">
         <div class="k">Where</div>
-        <button
+        <router-link
           v-if="paper.session"
           class="v v-link"
           title="Open in Explore"
-          @click="filterSession"
+          :to="{ path: '/', query: { session: paper.session } }"
         >
           {{ whereLabel }}
-        </button>
+        </router-link>
         <div v-else class="v">{{ whereLabel }}</div>
       </div>
       <div v-if="paper.session" class="kv">
         <div class="k">Session</div>
-        <button class="v v-link" title="Open in Explore" @click="filterSession">
+        <router-link
+          class="v v-link"
+          title="Open in Explore"
+          :to="{ path: '/', query: { session: paper.session } }"
+        >
           {{ paper.session }}
-        </button>
+        </router-link>
       </div>
       <div v-if="paper.topic_cluster" class="kv">
         <div class="k">Topic</div>
-        <button class="v v-link" title="Open in Explore" @click="filterCluster">
+        <router-link
+          class="v v-link"
+          title="Open in Explore"
+          :to="{ path: '/', query: { cluster: paper.topic_cluster } }"
+        >
           {{ paper.topic_cluster }}
-        </button>
+        </router-link>
       </div>
       <div v-if="paper.rating != null" class="kv">
         <div class="k">Review rating</div>
@@ -246,11 +232,11 @@ function filterInst(inst: string) {
 
     <template v-if="similar.length">
       <div class="det-section-title">Similar papers</div>
-      <div
+      <router-link
         v-for="s in similar"
         :key="s.id"
         class="sim-row"
-        @click="openSim(s.id)"
+        :to="`/paper/${s.id}`"
       >
         <div>
           <div class="sim-title">{{ s.title }}</div>
@@ -267,10 +253,13 @@ function filterInst(inst: string) {
           </div>
         </div>
         <div class="sim-score">{{ s._score.toFixed(2) }}</div>
-      </div>
-      <button class="btn det-explore" @click="showAllSimilar">
+      </router-link>
+      <router-link
+        class="btn det-explore"
+        :to="{ path: '/', query: { seed: paper.id } }"
+      >
         → Show all similar papers
-      </button>
+      </router-link>
     </template>
   </div>
 </template>

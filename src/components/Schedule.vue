@@ -65,12 +65,10 @@ function doPrint() {
   window.print();
 }
 
-function openSessionInExplore(sess: SessionGroup) {
-  const patch: { days?: Day[]; sessions: string[] } = {
-    sessions: [sess.session],
-  };
-  if (sess.day) patch.days = [sess.day];
-  ui.applyExploreFilter(patch);
+function sessionHref(sess: SessionGroup) {
+  const query: Record<string, string> = { session: sess.session };
+  if (sess.day) query.day = sess.day;
+  return { path: "/", query };
 }
 </script>
 
@@ -116,22 +114,21 @@ function openSessionInExplore(sess: SessionGroup) {
           <div v-for="sess in sessions" :key="sess.session" class="sess-block">
             <div class="sess-head">
               <div>
-                <button
-                  type="button"
+                <router-link
                   class="sess-name sess-name-link"
-                  @click="openSessionInExplore(sess)"
+                  :to="sessionHref(sess)"
                 >
                   {{ sess.session }}
-                </button>
+                </router-link>
                 <div class="sess-time">{{ timeLabelOf(sess) }}</div>
               </div>
               <div class="sess-counts">{{ sess.papers.length }}</div>
             </div>
-            <div
+            <router-link
               v-for="p in sess.papers"
               :key="p.id"
               class="check-row"
-              @click="ui.openPaper(p.id)"
+              :to="`/paper/${p.id}`"
             >
               <div class="chk-pos">{{ p.poster_pos || "ORAL" }}</div>
               <div>
@@ -140,7 +137,7 @@ function openSessionInExplore(sess: SessionGroup) {
               <div class="chk-tier" :class="tierClass(p)">
                 {{ tierText(p) }}
               </div>
-            </div>
+            </router-link>
           </div>
         </div>
       </template>
