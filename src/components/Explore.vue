@@ -35,6 +35,16 @@ const savedCentroidVec = computed(() => {
   );
 });
 
+// Snapshot of the centroid used to rank `reco`. Refreshed at natural
+// moments (filter/sort/query/seed change, embeddings load, route
+// re-activation) so toggling save doesn't reorder the list mid-scroll.
+const sortCentroidVec = ref<Float32Array | null>(null);
+function snapshotCentroid() {
+  sortCentroidVec.value = savedCentroidVec.value;
+}
+snapshotCentroid();
+watch(embeddings, snapshotCentroid);
+
 const seedPaper = computed<Paper | null>(() => {
   if (!seedPaperId.value) return null;
   return papers.value.find((p) => p.id === seedPaperId.value) || null;
@@ -87,7 +97,7 @@ const sorted = computed<Paper[]>(() => {
   const copy = filtered.value.slice();
   const s = sort.value;
   if (s === "reco") {
-    const centroidVec = savedCentroidVec.value;
+    const centroidVec = sortCentroidVec.value;
     if (centroidVec) {
       copy.sort((a, b) => {
         const va = papersStore.vecFor(a);
@@ -245,9 +255,13 @@ onBeforeRouteLeave(() => {
 });
 onActivated(() => {
   routeActive = true;
+  snapshotCentroid();
 });
 const resetShown = () => {
-  if (routeActive) shown.value = PAGE;
+  if (routeActive) {
+    shown.value = PAGE;
+    snapshotCentroid();
+  }
 };
 watch(filters, resetShown, { deep: true });
 watch(sort, resetShown);

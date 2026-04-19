@@ -10,7 +10,6 @@
 - [x] In filters allow to hide favorite papers so it it clean slate
 - [ ] Make sure I can trust the navigator and it has all orals, keynotes etc
 
-- Recommender by easy clustering + interleaving
 - In knn show the first hit
 - Make the title scroll beyond the screen
 - [ ] Make rating clickable and open openreview
