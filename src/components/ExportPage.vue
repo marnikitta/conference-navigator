@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from "vue";
 import { storeToRefs } from "pinia";
+import { useRoute, useRouter } from "vue-router";
 import { useUiStore } from "@/stores/ui";
 import { useSavedStore } from "@/stores/saved";
+import { encodeIds, decodeIds } from "@/lib/idCodec";
 
 function parseIds(text: string): string[] {
   if (!text) return [];
@@ -14,14 +16,28 @@ function parseIds(text: string): string[] {
 
 const ui = useUiStore();
 const saved = useSavedStore();
+const router = useRouter();
+const route = useRoute();
 const { savedIds } = storeToRefs(saved);
 
 const importText = ref("");
 const copied = ref(false);
+const linkCopied = ref(false);
 const exportField = useTemplateRef<HTMLTextAreaElement>("exportField");
+const shareField = useTemplateRef<HTMLTextAreaElement>("shareField");
 
 const savedList = computed(() => savedIds.value);
 const exportText = computed(() => savedList.value.join(", "));
+const shareUrl = computed(() => {
+  if (savedList.value.length === 0) return "";
+  const encoded = encodeIds(savedList.value);
+  if (!encoded) return "";
+  const href = router.resolve({
+    path: "/export",
+    query: { ids: encoded },
+  }).href;
+  return `${window.location.origin}${href}`;
+});
 const parsed = computed(() => parseIds(importText.value));
 const canImport = computed(() => parsed.value.length > 0);
 const importStatus = computed(() => {
@@ -31,6 +47,15 @@ const importStatus = computed(() => {
     ? "No valid IDs found."
     : `${n} ID${n === 1 ? "" : "s"} detected.`;
 });
+
+{
+  const raw = route.query.ids;
+  const param = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof param === "string" && param && !importText.value) {
+    const decoded = decodeIds(param);
+    if (decoded.length > 0) importText.value = decoded.join(", ");
+  }
+}
 
 async function copy() {
   try {
@@ -48,6 +73,23 @@ async function copy() {
   }
 }
 
+async function copyLink() {
+  if (!shareUrl.value) return;
+  try {
+    await navigator.clipboard.writeText(shareUrl.value);
+    linkCopied.value = true;
+    setTimeout(() => {
+      linkCopied.value = false;
+    }, 1500);
+  } catch {
+    const ta = shareField.value;
+    if (ta) {
+      ta.focus();
+      ta.select();
+    }
+  }
+}
+
 function doImport() {
   if (!canImport.value) return;
   saved.importIds(parsed.value);
@@ -56,6 +98,10 @@ function doImport() {
 }
 
 function selectAllExport(e: FocusEvent) {
+  (e.target as HTMLTextAreaElement).select();
+}
+
+function selectAllShare(e: FocusEvent) {
   (e.target as HTMLTextAreaElement).select();
 }
 </script>
@@ -83,6 +129,30 @@ function selectAllExport(e: FocusEvent) {
         @click="copy"
       >
         {{ copied ? "Copied ✓" : "Copy" }}
+      </button>
+    </div>
+
+    <div class="det-section-title" style="margin-top: 28px">Share link</div>
+    <p class="exp-hint">
+      Anyone opening this link will see these IDs ready to import.
+    </p>
+    <textarea
+      ref="shareField"
+      class="exp-field readonly"
+      readonly
+      rows="2"
+      :value="shareUrl"
+      placeholder="Save some papers to generate a shareable link."
+      @focus="selectAllShare"
+    />
+    <div class="exp-actions">
+      <button
+        class="btn primary"
+        :disabled="!shareUrl"
+        :class="{ disabled: !shareUrl }"
+        @click="copyLink"
+      >
+        {{ linkCopied ? "Copied ✓" : "Copy link" }}
       </button>
     </div>
 
