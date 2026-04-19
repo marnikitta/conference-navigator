@@ -3,11 +3,13 @@ import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
+import { useSavedStore } from "@/stores/saved";
 import {
   uniqueClusters,
   uniqueInsts,
   uniqueSessions,
 } from "@/composables/usePapers";
+import { buildRankingContext, centroid } from "@/composables/useSimilarity";
 import type { Filters, Paper } from "@/types";
 
 const props = defineProps<{
@@ -17,8 +19,10 @@ const props = defineProps<{
 
 const ui = useUiStore();
 const papersStore = usePapersStore();
+const saved = useSavedStore();
 const { filters } = storeToRefs(ui);
 const { dayDefs } = storeToRefs(papersStore);
+const { idSet: savedIds } = storeToRefs(saved);
 
 const EVENT_TYPES = [
   "Poster",
@@ -27,10 +31,101 @@ const EVENT_TYPES = [
   "Journal Track Poster",
 ];
 
-const clusters = computed(() => uniqueClusters(props.papers));
 const insts = computed(() => uniqueInsts(props.papers));
 const sessions = computed(() => uniqueSessions(props.papers));
 const minRating = computed(() => filters.value.minRating || 0);
+
+// --- counts per filter option -------------------------------------------
+
+function countBy<K extends string | number>(
+  items: Paper[],
+  key: (p: Paper) => K | null | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of items) {
+    const k = key(p);
+    if (k == null || k === "") continue;
+    out[String(k)] = (out[String(k)] || 0) + 1;
+  }
+  return out;
+}
+
+const eventTypeCounts = computed(() =>
+  countBy(props.papers, (p) => p.event_type),
+);
+const dayCounts = computed(() => countBy(props.papers, (p) => p.day));
+const sessionCounts = computed(() => countBy(props.papers, (p) => p.session));
+const clusterCounts = computed(() =>
+  countBy(props.papers, (p) => p.topic_cluster),
+);
+const instCounts = computed<Record<string, number>>(() => {
+  const out: Record<string, number> = {};
+  for (const p of props.papers) {
+    const seen = new Set<string>();
+    for (const a of p.authors) {
+      if (!a.inst || seen.has(a.inst)) continue;
+      seen.add(a.inst);
+      out[a.inst] = (out[a.inst] || 0) + 1;
+    }
+  }
+  return out;
+});
+
+// --- topic relevance ranking -------------------------------------------
+
+// Same strategy as Explore's reco sort (see RANKING_STRATEGY in
+// useSimilarity.ts) so filter order stays consistent with the feed.
+const rankCtx = computed(() => {
+  const vecs: Float32Array[] = [];
+  for (const p of props.papers) {
+    if (!savedIds.value.has(p.id)) continue;
+    const v = papersStore.vecFor(p);
+    if (v) vecs.push(v);
+  }
+  return buildRankingContext(vecs);
+});
+
+const topicCentroids = computed<Record<string, Float32Array>>(() => {
+  const buckets: Record<string, Float32Array[]> = {};
+  for (const p of props.papers) {
+    const t = p.topic_cluster;
+    if (!t) continue;
+    const v = papersStore.vecFor(p);
+    if (!v) continue;
+    (buckets[t] ??= []).push(v);
+  }
+  const out: Record<string, Float32Array> = {};
+  for (const [t, vecs] of Object.entries(buckets)) {
+    const c = centroid(vecs);
+    if (c) out[t] = c;
+  }
+  return out;
+});
+
+interface ClusterOption {
+  name: string;
+  count: number;
+}
+
+// Topics sorted by the active ranking strategy's score on the topic
+// centroid. Falls back to alphabetical when saved signal is absent.
+const clusters = computed<ClusterOption[]>(() => {
+  const names = uniqueClusters(props.papers);
+  const counts = clusterCounts.value;
+  const ctx = rankCtx.value;
+  if (!ctx.active) {
+    return names.map((n) => ({ name: n, count: counts[n] || 0 }));
+  }
+  const cents = topicCentroids.value;
+  return names
+    .map((n) => ({
+      name: n,
+      count: counts[n] || 0,
+      score: cents[n] ? ctx.score(cents[n]) : -Infinity,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map(({ name, count }) => ({ name, count }));
+});
 
 function isOn<K extends keyof Filters>(
   key: K,
@@ -117,7 +212,7 @@ function close() {
             :class="{ on: isOn('eventTypes', t) }"
             @click="toggleOpt('eventTypes', t)"
           >
-            {{ t }}
+            {{ t }}<span class="filt-count">{{ eventTypeCounts[t] || 0 }}</span>
           </button>
         </div>
       </div>
@@ -132,7 +227,8 @@ function close() {
             :class="{ on: isOn('days', def.date) }"
             @click="toggleOpt('days', def.date)"
           >
-            {{ def.short }} · {{ def.pretty }}
+            {{ def.short }} · {{ def.pretty
+            }}<span class="filt-count">{{ dayCounts[def.date] || 0 }}</span>
           </button>
         </div>
       </div>
@@ -147,7 +243,7 @@ function close() {
             :class="{ on: isOn('sessions', s) }"
             @click="toggleOpt('sessions', s)"
           >
-            {{ s }}
+            {{ s }}<span class="filt-count">{{ sessionCounts[s] || 0 }}</span>
           </button>
         </div>
       </div>
@@ -172,12 +268,12 @@ function close() {
         <div class="filt-opts">
           <button
             v-for="c in clusters"
-            :key="c"
+            :key="c.name"
             class="filt-opt"
-            :class="{ on: isOn('clusters', c) }"
-            @click="toggleOpt('clusters', c)"
+            :class="{ on: isOn('clusters', c.name) }"
+            @click="toggleOpt('clusters', c.name)"
           >
-            {{ c }}
+            {{ c.name }}<span class="filt-count">{{ c.count }}</span>
           </button>
         </div>
       </div>
@@ -192,7 +288,8 @@ function close() {
             :class="{ on: isOn('insts', inst) }"
             @click="toggleOpt('insts', inst)"
           >
-            {{ inst }}
+            {{ inst
+            }}<span class="filt-count">{{ instCounts[inst] || 0 }}</span>
           </button>
         </div>
       </div>

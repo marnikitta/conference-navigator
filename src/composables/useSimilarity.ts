@@ -103,6 +103,71 @@ export function rankingScoreFromClusters(
   return best;
 }
 
+// Ranking strategies
+// -------------------
+//
+// Two ways to turn a user's saved papers into a "recommend" score:
+//
+//   - "centroid": single average embedding of saved papers. Simple and
+//     stable; best when saved papers share a coherent theme.
+//   - "clusters": leader-cluster the saved papers and score by
+//     `rankingScoreFromClusters` (log-weighted cosine to the best
+//     non-singleton cluster). More forgiving of a heterogeneous save
+//     list, at the cost of ignoring one-off saves.
+//
+// `RANKING_STRATEGY` is a code-level toggle; it is not surfaced in the
+// UI. Flip it here and rebuild to try the other mode.
+
+export type RankingStrategy = "centroid" | "clusters";
+
+export const RANKING_STRATEGY: RankingStrategy = "centroid";
+
+export interface RankingContext {
+  /** Score an embedding against the saved signal. Higher = more relevant. */
+  score: (vec: Float32Array | null | undefined) => number;
+  /** True when there is enough saved signal to produce a meaningful order. */
+  active: boolean;
+  strategy: RankingStrategy;
+  /** One-line human-readable summary for logs. */
+  describe: () => string;
+}
+
+export function buildRankingContext(
+  savedVecs: Array<Float32Array | null | undefined>,
+  strategy: RankingStrategy = RANKING_STRATEGY,
+): RankingContext {
+  const vecs: Float32Array[] = [];
+  for (const v of savedVecs) if (v) vecs.push(v);
+
+  if (strategy === "centroid") {
+    const c = centroid(vecs);
+    const active = c !== null && vecs.length > 0;
+    return {
+      score: c ? (v) => cosine(c, v) : () => -Infinity,
+      active,
+      strategy,
+      describe: () =>
+        active
+          ? `[reco:centroid] 1 centroid from ${vecs.length} saved paper${vecs.length === 1 ? "" : "s"}`
+          : "[reco:centroid] no saved signal",
+    };
+  }
+
+  // strategy === "clusters"
+  const items = vecs.map((vec, i) => ({ id: String(i), vec }));
+  const clusters = clusterByLeader(items);
+  const active = clusters.some((c) => c.memberIds.length >= 2);
+  return {
+    score: (v) => rankingScoreFromClusters(v, clusters),
+    active,
+    strategy,
+    describe: () => {
+      const total = clusters.reduce((a, c) => a + c.memberIds.length, 0);
+      return `[reco:clusters] ${clusters.length} cluster${clusters.length === 1 ? "" : "s"} from ${total} saved`;
+    },
+  };
+}
+
 export interface SimilarHit {
   paper: Paper;
   score: number;

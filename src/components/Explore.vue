@@ -9,9 +9,8 @@ import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import {
   cosine,
-  clusterByLeader,
-  rankingScoreFromClusters,
-  type Cluster,
+  buildRankingContext,
+  type RankingContext,
 } from "@/composables/useSimilarity";
 import { groupByTopicRuns, truncate } from "@/composables/usePapers";
 import type { Block, Filters, Paper, Sort } from "@/types";
@@ -35,41 +34,29 @@ const savedPapers = computed(() =>
   papers.value.filter((p) => savedIds.value.has(p.id)),
 );
 
-// Snapshot of the clusters used to rank `reco`. Refreshed at natural
+// Snapshot of the ranking context used by `reco`. Refreshed at natural
 // moments (filter/sort/query/seed change, embeddings load, route
-// re-activation) so toggling save doesn't re-cluster mid-scroll.
-const sortClusters = ref<Cluster[]>([]);
-function snapshotClusters() {
+// re-activation) so toggling save doesn't reshuffle the list mid-scroll.
+// The active strategy (centroid vs. clusters) is a code-level toggle in
+// `useSimilarity.ts` — see `RANKING_STRATEGY`.
+const rankCtx = ref<RankingContext | null>(null);
+function snapshotRanking() {
   if (!embeddings.value) {
-    sortClusters.value = [];
+    rankCtx.value = null;
     return;
   }
-  const items: { id: string; vec: Float32Array }[] = [];
+  const vecs: Float32Array[] = [];
   for (const p of papers.value) {
     if (!savedIds.value.has(p.id)) continue;
     const v = papersStore.vecFor(p);
-    if (v) items.push({ id: p.id, vec: v });
+    if (v) vecs.push(v);
   }
-  const clusters = clusterByLeader(items);
-  sortClusters.value = clusters;
-  if (clusters.length > 0) {
-    const titleById = new Map(papers.value.map((p) => [p.id, p.title]));
-    console.log(
-      `[reco] ${clusters.length} cluster${clusters.length === 1 ? "" : "s"} from ${items.length} saved papers`,
-    );
-    clusters.forEach((c, i) => {
-      const sample = titleById.get(c.memberIds[0]) ?? c.memberIds[0];
-      const size = c.memberIds.length;
-      const weight = Math.log(1 + size).toFixed(2);
-      const tag = size < 2 ? " · ignored (singleton)" : ` · w=${weight}`;
-      console.log(
-        `  #${i + 1} · ${size} paper${size === 1 ? "" : "s"}${tag} · e.g. "${sample}"`,
-      );
-    });
-  }
+  const ctx = buildRankingContext(vecs);
+  rankCtx.value = ctx;
+  if (vecs.length > 0) console.log(ctx.describe());
 }
-snapshotClusters();
-watch(embeddings, snapshotClusters);
+snapshotRanking();
+watch(embeddings, snapshotRanking);
 
 const seedPaper = computed<Paper | null>(() => {
   if (!seedPaperId.value) return null;
@@ -125,14 +112,11 @@ const sorted = computed<Paper[]>(() => {
   const copy = filtered.value.slice();
   const s = sort.value;
   if (s === "reco") {
-    const clusters = sortClusters.value;
-    const hasRankable = clusters.some((c) => c.memberIds.length >= 2);
-    if (hasRankable) {
+    const ctx = rankCtx.value;
+    if (ctx?.active) {
       copy.sort((a, b) => {
-        const va = papersStore.vecFor(a);
-        const vb = papersStore.vecFor(b);
-        const sa = va ? rankingScoreFromClusters(va, clusters) : -Infinity;
-        const sb = vb ? rankingScoreFromClusters(vb, clusters) : -Infinity;
+        const sa = ctx.score(papersStore.vecFor(a));
+        const sb = ctx.score(papersStore.vecFor(b));
         return sb - sa;
       });
     } else {
@@ -301,12 +285,12 @@ onBeforeRouteLeave(() => {
 });
 onActivated(() => {
   routeActive = true;
-  snapshotClusters();
+  snapshotRanking();
 });
 const resetShown = () => {
   if (routeActive) {
     shown.value = pageSize.value;
-    snapshotClusters();
+    snapshotRanking();
   }
 };
 watch(filters, resetShown, { deep: true });

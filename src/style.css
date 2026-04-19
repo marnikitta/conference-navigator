@@ -879,6 +879,15 @@ a {
   background: var(--ink);
   color: var(--bg);
 }
+.filt-opt .filt-count {
+  margin-left: 6px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+}
+.filt-opt.on .filt-count {
+  color: color-mix(in oklab, var(--bg) 65%, transparent);
+}
 .slider {
   width: 100%;
   accent-color: var(--accent);
