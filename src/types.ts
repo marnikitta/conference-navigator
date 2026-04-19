@@ -110,7 +110,7 @@ export interface Filters {
   spotlightOnly?: boolean;
   minRating?: number;
   savedOnly?: boolean;
-  hideSaved?: boolean;
+  showSaved?: boolean;
 }
 
 export interface SessionGroup {

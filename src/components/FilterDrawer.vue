@@ -62,12 +62,12 @@ function onRatingInput(e: Event) {
 
 function toggleSavedOnly() {
   const on = !filters.value.savedOnly;
-  ui.setFilters({ ...filters.value, savedOnly: on, hideSaved: false });
+  ui.setFilters({ ...filters.value, savedOnly: on, showSaved: false });
 }
 
-function toggleHideSaved() {
-  const on = !filters.value.hideSaved;
-  ui.setFilters({ ...filters.value, hideSaved: on, savedOnly: false });
+function toggleShowSaved() {
+  const on = !filters.value.showSaved;
+  ui.setFilters({ ...filters.value, showSaved: on, savedOnly: false });
 }
 
 function reset() {
@@ -99,10 +99,10 @@ function close() {
           </button>
           <button
             class="filt-opt"
-            :class="{ on: filters.hideSaved }"
-            @click="toggleHideSaved"
+            :class="{ on: filters.showSaved }"
+            @click="toggleShowSaved"
           >
-            {{ filters.hideSaved ? "✓ Hide saved" : "Hide saved" }}
+            {{ filters.showSaved ? "✓ Show saved" : "Show saved" }}
           </button>
         </div>
       </div>

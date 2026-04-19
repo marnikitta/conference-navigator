@@ -7,7 +7,12 @@ import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
-import { cosine, savedCentroid } from "@/composables/useSimilarity";
+import {
+  cosine,
+  clusterByLeader,
+  rankingScoreFromClusters,
+  type Cluster,
+} from "@/composables/useSimilarity";
 import { truncate } from "@/composables/usePapers";
 import type { Filters, Paper, Sort } from "@/types";
 import PaperRow from "./PaperRow.vue";
@@ -28,22 +33,41 @@ const savedPapers = computed(() =>
   papers.value.filter((p) => savedIds.value.has(p.id)),
 );
 
-const savedCentroidVec = computed(() => {
-  if (!embeddings.value) return null;
-  return savedCentroid(papers.value, savedIds.value, (p) =>
-    papersStore.vecFor(p),
-  );
-});
-
-// Snapshot of the centroid used to rank `reco`. Refreshed at natural
+// Snapshot of the clusters used to rank `reco`. Refreshed at natural
 // moments (filter/sort/query/seed change, embeddings load, route
-// re-activation) so toggling save doesn't reorder the list mid-scroll.
-const sortCentroidVec = ref<Float32Array | null>(null);
-function snapshotCentroid() {
-  sortCentroidVec.value = savedCentroidVec.value;
+// re-activation) so toggling save doesn't re-cluster mid-scroll.
+const sortClusters = ref<Cluster[]>([]);
+function snapshotClusters() {
+  if (!embeddings.value) {
+    sortClusters.value = [];
+    return;
+  }
+  const items: { id: string; vec: Float32Array }[] = [];
+  for (const p of papers.value) {
+    if (!savedIds.value.has(p.id)) continue;
+    const v = papersStore.vecFor(p);
+    if (v) items.push({ id: p.id, vec: v });
+  }
+  const clusters = clusterByLeader(items);
+  sortClusters.value = clusters;
+  if (clusters.length > 0) {
+    const titleById = new Map(papers.value.map((p) => [p.id, p.title]));
+    console.log(
+      `[reco] ${clusters.length} cluster${clusters.length === 1 ? "" : "s"} from ${items.length} saved papers`,
+    );
+    clusters.forEach((c, i) => {
+      const sample = titleById.get(c.memberIds[0]) ?? c.memberIds[0];
+      const size = c.memberIds.length;
+      const weight = Math.log(1 + size).toFixed(2);
+      const tag = size < 2 ? " · ignored (singleton)" : ` · w=${weight}`;
+      console.log(
+        `  #${i + 1} · ${size} paper${size === 1 ? "" : "s"}${tag} · e.g. "${sample}"`,
+      );
+    });
+  }
 }
-snapshotCentroid();
-watch(embeddings, snapshotCentroid);
+snapshotClusters();
+watch(embeddings, snapshotClusters);
 
 const seedPaper = computed<Paper | null>(() => {
   if (!seedPaperId.value) return null;
@@ -79,7 +103,9 @@ const filtered = computed<Paper[]>(() => {
     if (f.minRating && (p.rating == null || p.rating < f.minRating))
       return false;
     if (f.savedOnly && !savedIds.value.has(p.id)) return false;
-    if (f.hideSaved && savedIds.value.has(p.id)) return false;
+    // Saved papers are hidden by default; "Show saved" opts back in.
+    // `savedOnly` implies saved are visible regardless.
+    if (!f.savedOnly && !f.showSaved && savedIds.value.has(p.id)) return false;
     if (
       f.clusters?.length &&
       (!p.topic_cluster || !f.clusters.includes(p.topic_cluster))
@@ -97,13 +123,14 @@ const sorted = computed<Paper[]>(() => {
   const copy = filtered.value.slice();
   const s = sort.value;
   if (s === "reco") {
-    const centroidVec = sortCentroidVec.value;
-    if (centroidVec) {
+    const clusters = sortClusters.value;
+    const hasRankable = clusters.some((c) => c.memberIds.length >= 2);
+    if (hasRankable) {
       copy.sort((a, b) => {
         const va = papersStore.vecFor(a);
         const vb = papersStore.vecFor(b);
-        const sa = va ? cosine(centroidVec, va) : -1;
-        const sb = vb ? cosine(centroidVec, vb) : -1;
+        const sa = va ? rankingScoreFromClusters(va, clusters) : -Infinity;
+        const sb = vb ? rankingScoreFromClusters(vb, clusters) : -Infinity;
         return sb - sa;
       });
     } else {
@@ -193,11 +220,11 @@ const chips = computed<Chip[]>(() => {
       label: "Saved only",
       rm: () => ui.setFilters({ ...f, savedOnly: false }),
     });
-  if (f.hideSaved)
+  if (f.showSaved)
     out.push({
-      key: "hs",
-      label: "Hide saved",
-      rm: () => ui.setFilters({ ...f, hideSaved: false }),
+      key: "ss-saved",
+      label: "Show saved",
+      rm: () => ui.setFilters({ ...f, showSaved: false }),
     });
   return out;
 });
@@ -252,12 +279,12 @@ onBeforeRouteLeave(() => {
 });
 onActivated(() => {
   routeActive = true;
-  snapshotCentroid();
+  snapshotClusters();
 });
 const resetShown = () => {
   if (routeActive) {
     shown.value = PAGE;
-    snapshotCentroid();
+    snapshotClusters();
   }
 };
 watch(filters, resetShown, { deep: true });

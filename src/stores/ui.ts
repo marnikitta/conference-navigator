@@ -23,7 +23,9 @@ const FILTER_CODECS: FilterCodec<keyof Filters>[] = [
   { key: "spotlightOnly", urlKey: "spotlight", kind: "bool" },
   { key: "minRating", urlKey: "minRating", kind: "number" },
   { key: "savedOnly", urlKey: "saved", kind: "bool" },
-  { key: "hideSaved", urlKey: "hideSaved", kind: "bool" },
+  // Saved papers are hidden from Explore by default. Opt back in with
+  // ?showSaved=1; no URL param is needed to express the default.
+  { key: "showSaved", urlKey: "showSaved", kind: "bool" },
 ];
 
 const FILTER_URL_KEYS = new Set(FILTER_CODECS.map((c) => c.urlKey));
