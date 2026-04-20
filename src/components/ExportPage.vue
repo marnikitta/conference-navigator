@@ -302,7 +302,9 @@ function selectAllShare(e: FocusEvent) {
 
       <div class="qr-card">
         <QrCode :value="shareUrl" :size="200" />
-        <div class="qr-caption">Or scan on another device</div>
+        <div class="qr-caption">
+          Scan on another device to import your saved list
+        </div>
       </div>
     </template>
     <p v-else class="share-empty">
