@@ -884,6 +884,21 @@ a {
   color: var(--muted);
   margin-bottom: 10px;
 }
+.filt-title-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  text-decoration: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.filt-title-link:hover {
+  color: var(--ink);
+}
+.filt-title-arrow {
+  font-size: 11px;
+  opacity: 0.7;
+}
 .filt-opts {
   display: flex;
   flex-wrap: wrap;
@@ -947,10 +962,32 @@ a {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }
-.filt-opts-scroll {
-  max-height: 240px;
-  overflow-y: auto;
-  padding-right: 4px;
+.filt-subgroup + .filt-subgroup {
+  margin-top: 12px;
+}
+.filt-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.filt-more {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule);
+}
+.filt-more:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
 }
 .exp-hint {
   font-size: 13px;
@@ -1323,4 +1360,95 @@ a {
   .exp-field {
     font-size: 16px;
   }
+}
+
+/* Sitemap pages (Topics, Sessions) */
+.sitemap .sitemap-title {
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 4px 0 8px;
+}
+.sitemap .sitemap-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+.sitemap-section {
+  margin-top: 24px;
+}
+.sitemap-section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+.sitemap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sitemap-list > li {
+  border-bottom: 1px solid var(--rule);
+}
+.sitemap-list > li:last-child {
+  border-bottom: none;
+}
+.sitemap-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 0;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.sitemap-link:hover .sitemap-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ink);
+}
+.sitemap-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.sitemap-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* App footer */
+.app-footer {
+  border-top: 1px solid var(--rule);
+  padding: 20px 24px 28px;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: center;
+  margin-top: 32px;
+}
+.footer-link {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule);
+}
+.footer-link:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
+}
+.footer-sep {
+  color: var(--muted);
+  opacity: 0.6;
 }

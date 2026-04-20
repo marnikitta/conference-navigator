@@ -45,6 +45,32 @@ export function uniqueSessions(papers: Paper[]): string[] {
   return Array.from(s).sort();
 }
 
+export interface SessionMeta {
+  name: string;
+  day: string | null;
+  total: number;
+}
+
+/**
+ * Sessions with total paper counts, sorted by (day, name). Alphabetical
+ * within day — with natural-numeric compare so "Session 2" precedes
+ * "Session 10".
+ */
+export function sessionsWithMeta(papers: Paper[]): SessionMeta[] {
+  const metas = new Map<string, SessionMeta>();
+  for (const p of papers) {
+    if (!p.session) continue;
+    const cur = metas.get(p.session);
+    if (cur) cur.total++;
+    else metas.set(p.session, { name: p.session, day: p.day, total: 1 });
+  }
+  return Array.from(metas.values()).sort((a, b) => {
+    const d = (a.day || "").localeCompare(b.day || "");
+    if (d !== 0) return d;
+    return a.name.localeCompare(b.name, undefined, { numeric: true });
+  });
+}
+
 export function tierText(paper: Paper): string {
   if (paper.tier === "Spotlight") return "Spotlight";
   if (paper.event_type === "Oral") return "Oral";

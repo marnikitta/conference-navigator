@@ -3,6 +3,7 @@ import { storeToRefs } from "pinia";
 import { usePapersStore } from "@/stores/papers";
 import Topbar from "@/components/Topbar.vue";
 import Tabs from "@/components/Tabs.vue";
+import AppFooter from "@/components/AppFooter.vue";
 
 const papers = usePapersStore();
 const { loaded, loadError } = storeToRefs(papers);
@@ -26,5 +27,6 @@ const { loaded, loadError } = storeToRefs(papers);
         <component :is="Component" />
       </keep-alive>
     </router-view>
+    <AppFooter v-if="loaded" />
   </div>
 </template>

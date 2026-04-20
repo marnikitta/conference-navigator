@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import {
+  sessionsWithMeta,
   uniqueClusters,
   uniqueInsts,
-  uniqueSessions,
+  type SessionMeta,
 } from "@/composables/usePapers";
 import {
   buildRankingContext,
@@ -35,8 +36,13 @@ const EVENT_TYPES = [
   "Journal Track Poster",
 ];
 
+const COLLAPSE_LIMIT = 10;
+const TOPIC_COLLAPSE_LIMIT = 20;
+const sessionsExpanded = ref(false);
+const instsExpanded = ref(false);
+const topicsExpanded = ref(false);
+
 const insts = computed(() => uniqueInsts(props.papers));
-const sessions = computed(() => uniqueSessions(props.papers));
 
 // --- counts per filter option -------------------------------------------
 
@@ -57,7 +63,6 @@ const eventTypeCounts = computed(() =>
   countBy(props.papers, (p) => p.event_type),
 );
 const dayCounts = computed(() => countBy(props.papers, (p) => p.day));
-const sessionCounts = computed(() => countBy(props.papers, (p) => p.session));
 const clusterCounts = computed(() =>
   countBy(props.papers, (p) => p.topic_cluster),
 );
@@ -73,6 +78,48 @@ const instCounts = computed<Record<string, number>>(() => {
   }
   return out;
 });
+
+// --- sessions: count + day, grouped for navigation ---------------------
+
+const sessionOptions = computed(() => sessionsWithMeta(props.papers));
+
+const visibleSessions = computed(() =>
+  sessionsExpanded.value
+    ? sessionOptions.value
+    : sessionOptions.value.slice(0, COLLAPSE_LIMIT),
+);
+
+interface SessionDayGroup {
+  key: string;
+  label: string;
+  sessions: SessionMeta[];
+}
+
+const sessionDayGroups = computed<SessionDayGroup[]>(() => {
+  const order: string[] = [];
+  const byDay = new Map<string, SessionMeta[]>();
+  for (const s of visibleSessions.value) {
+    const key = s.day || "";
+    const list = byDay.get(key);
+    if (list) list.push(s);
+    else {
+      byDay.set(key, [s]);
+      order.push(key);
+    }
+  }
+  return order.map((key) => {
+    const def = key ? papersStore.dayDef(key) : null;
+    return {
+      key: key || "unscheduled",
+      label: def ? `${def.short} · ${def.pretty}` : "Unscheduled",
+      sessions: byDay.get(key)!,
+    };
+  });
+});
+
+const visibleInsts = computed(() =>
+  instsExpanded.value ? insts.value : insts.value.slice(0, COLLAPSE_LIMIT),
+);
 
 // --- topic relevance ranking -------------------------------------------
 
@@ -131,6 +178,12 @@ const clusters = computed<ClusterOption[]>(() => {
     .sort((a, b) => b.score - a.score)
     .map(({ name, count }) => ({ name, count }));
 });
+
+const visibleClusters = computed(() =>
+  topicsExpanded.value
+    ? clusters.value
+    : clusters.value.slice(0, TOPIC_COLLAPSE_LIMIT),
+);
 
 function isOn<K extends keyof Filters>(
   key: K,
@@ -214,6 +267,96 @@ function close() {
       </div>
 
       <div class="filt-sec">
+        <router-link
+          class="filt-title filt-title-link"
+          :to="{ name: 'sessions' }"
+        >
+          Session ({{ sessionOptions.length }})
+          <span class="filt-title-arrow" aria-hidden="true">↗</span>
+        </router-link>
+        <div
+          v-for="group in sessionDayGroups"
+          :key="group.key"
+          class="filt-subgroup"
+        >
+          <div class="filt-subtitle">{{ group.label }}</div>
+          <div class="filt-opts">
+            <button
+              v-for="s in group.sessions"
+              :key="s.name"
+              class="filt-opt"
+              :class="{ on: isOn('sessions', s.name) }"
+              @click="toggleOpt('sessions', s.name)"
+            >
+              {{ s.name }}<span class="filt-count">{{ s.total }}</span>
+            </button>
+          </div>
+        </div>
+        <button
+          v-if="sessionOptions.length > COLLAPSE_LIMIT"
+          class="filt-more"
+          @click="sessionsExpanded = !sessionsExpanded"
+        >
+          {{
+            sessionsExpanded
+              ? "Show less"
+              : `Show all (${sessionOptions.length})`
+          }}
+        </button>
+      </div>
+
+      <div class="filt-sec">
+        <router-link
+          class="filt-title filt-title-link"
+          :to="{ name: 'topics' }"
+        >
+          Topic cluster ({{ clusters.length }})
+          <span class="filt-title-arrow" aria-hidden="true">↗</span>
+        </router-link>
+        <div class="filt-opts">
+          <button
+            v-for="c in visibleClusters"
+            :key="c.name"
+            class="filt-opt"
+            :class="{ on: isOn('clusters', c.name) }"
+            @click="toggleOpt('clusters', c.name)"
+          >
+            {{ c.name }}<span class="filt-count">{{ c.count }}</span>
+          </button>
+        </div>
+        <button
+          v-if="clusters.length > TOPIC_COLLAPSE_LIMIT"
+          class="filt-more"
+          @click="topicsExpanded = !topicsExpanded"
+        >
+          {{ topicsExpanded ? "Show less" : `Show all (${clusters.length})` }}
+        </button>
+      </div>
+
+      <div class="filt-sec">
+        <div class="filt-title">Institution ({{ insts.length }})</div>
+        <div class="filt-opts">
+          <button
+            v-for="inst in visibleInsts"
+            :key="inst"
+            class="filt-opt"
+            :class="{ on: isOn('insts', inst) }"
+            @click="toggleOpt('insts', inst)"
+          >
+            {{ inst
+            }}<span class="filt-count">{{ instCounts[inst] || 0 }}</span>
+          </button>
+        </div>
+        <button
+          v-if="insts.length > COLLAPSE_LIMIT"
+          class="filt-more"
+          @click="instsExpanded = !instsExpanded"
+        >
+          {{ instsExpanded ? "Show less" : `Show all (${insts.length})` }}
+        </button>
+      </div>
+
+      <div class="filt-sec">
         <div class="filt-title">Day</div>
         <div class="filt-opts">
           <button
@@ -225,52 +368,6 @@ function close() {
           >
             {{ def.short }} · {{ def.pretty
             }}<span class="filt-count">{{ dayCounts[def.date] || 0 }}</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="filt-sec">
-        <div class="filt-title">Session</div>
-        <div class="filt-opts">
-          <button
-            v-for="s in sessions"
-            :key="s"
-            class="filt-opt"
-            :class="{ on: isOn('sessions', s) }"
-            @click="toggleOpt('sessions', s)"
-          >
-            {{ s }}<span class="filt-count">{{ sessionCounts[s] || 0 }}</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="filt-sec">
-        <div class="filt-title">Topic cluster ({{ clusters.length }})</div>
-        <div class="filt-opts">
-          <button
-            v-for="c in clusters"
-            :key="c.name"
-            class="filt-opt"
-            :class="{ on: isOn('clusters', c.name) }"
-            @click="toggleOpt('clusters', c.name)"
-          >
-            {{ c.name }}<span class="filt-count">{{ c.count }}</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="filt-sec">
-        <div class="filt-title">Institution ({{ insts.length }})</div>
-        <div class="filt-opts filt-opts-scroll">
-          <button
-            v-for="inst in insts"
-            :key="inst"
-            class="filt-opt"
-            :class="{ on: isOn('insts', inst) }"
-            @click="toggleOpt('insts', inst)"
-          >
-            {{ inst
-            }}<span class="filt-count">{{ instCounts[inst] || 0 }}</span>
           </button>
         </div>
       </div>
