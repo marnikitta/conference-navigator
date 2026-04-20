@@ -21,9 +21,10 @@ interface Row {
   saved: number;
 }
 
-// Use the centroid strategy (same as FilterDrawer) for a stable,
-// preference-driven ordering. Falls back to alphabetical when there's
-// no saved signal yet.
+// Rank topics with the "clusters" strategy (LSE over leader-clusters
+// of the saved set) — matches the filter drawer, and unlike
+// "opinionated" has no jitter so the ordering is stable across visits.
+// Falls back to alphabetical when there's no saved signal yet.
 const rankCtx = computed(() =>
   buildRankingContext(
     collectSavedVecs(
@@ -31,7 +32,7 @@ const rankCtx = computed(() =>
       (id) => savedIds.value.has(id),
       (p) => papersStore.vecFor(p),
     ),
-    "centroid",
+    "clusters",
   ),
 );
 

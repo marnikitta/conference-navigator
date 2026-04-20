@@ -123,9 +123,9 @@ const visibleInsts = computed(() =>
 
 // --- topic relevance ranking -------------------------------------------
 
-// Pin topic ordering to the plain centroid strategy so the filter list
-// stays stable across re-renders. The feed's reco sort may bootstrap-
-// sample, but topics randomizing each time the drawer opens is jarring.
+// Rank topics by the "clusters" strategy: LSE over leader-clusters of
+// the saved set. Deterministic (no jitter), so the list stays stable
+// across drawer opens, unlike the feed's "opinionated" reco.
 const rankCtx = computed(() =>
   buildRankingContext(
     collectSavedVecs(
@@ -133,7 +133,7 @@ const rankCtx = computed(() =>
       (id) => savedIds.value.has(id),
       (p) => papersStore.vecFor(p),
     ),
-    "centroid",
+    "clusters",
   ),
 );
 
