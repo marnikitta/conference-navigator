@@ -33,6 +33,13 @@ const savedPapers = computed(() =>
   papers.value.filter((p) => savedIds.value.has(p.id)),
 );
 
+// IDs that were already saved when the user started this browsing
+// session. When "Show saved" is off we only hide papers in this baseline
+// — anything the user saves *while browsing* stays visible, so the row
+// doesn't vanish the moment they click save. The ref is kept alive with
+// the component, so it only resets on a full page reload.
+const savedBaseline = ref<Set<string>>(new Set(savedIds.value));
+
 // Snapshot of the ranking context used by `reco`, plus a pre-computed
 // order of every paper under that context. The snapshot is taken once
 // per page load and deliberately *not* refreshed when the user saves
@@ -125,8 +132,16 @@ const filtered = computed<Paper[]>(() => {
     if (f.spotlightOnly && p.tier !== "Spotlight") return false;
     if (f.savedOnly && !savedIds.value.has(p.id)) return false;
     // Saved papers are hidden by default; "Show saved" opts back in.
-    // `savedOnly` implies saved are visible regardless.
-    if (!f.savedOnly && !f.showSaved && savedIds.value.has(p.id)) return false;
+    // `savedOnly` implies saved are visible regardless. Papers saved
+    // during this session (not in `savedBaseline`) stay visible so new
+    // saves don't disappear while the user is still browsing.
+    if (
+      !f.savedOnly &&
+      !f.showSaved &&
+      savedIds.value.has(p.id) &&
+      savedBaseline.value.has(p.id)
+    )
+      return false;
     if (
       f.clusters?.length &&
       (!p.topic_cluster || !f.clusters.includes(p.topic_cluster))
