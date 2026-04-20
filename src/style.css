@@ -1025,6 +1025,46 @@ a {
   opacity: 0.35;
   pointer-events: none;
 }
+
+/* Share link: readonly URL field + copy button side by side. */
+.share-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.share-row .btn {
+  flex: none;
+}
+.share-url {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-2);
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  outline: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.share-url:focus {
+  border-color: var(--rule);
+  background: var(--bg);
+  color: var(--ink);
+}
+.share-empty {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  background: transparent;
+}
 .exp-status {
   font-size: 12px;
   color: var(--muted);
@@ -1357,7 +1397,8 @@ a {
   select,
   textarea,
   .search input,
-  .exp-field {
+  .exp-field,
+  .share-url {
     font-size: 16px;
   }
 }

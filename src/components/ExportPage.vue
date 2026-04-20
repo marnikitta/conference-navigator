@@ -32,7 +32,7 @@ const { papers } = storeToRefs(papersStore);
 const linkCopied = ref(false);
 const editOpen = ref(false);
 const editText = ref(savedIds.value.join(", "));
-const shareField = useTemplateRef<HTMLTextAreaElement>("shareField");
+const shareField = useTemplateRef<HTMLInputElement>("shareField");
 
 const savedList = computed(() => savedIds.value);
 const shareUrl = computed(() => {
@@ -158,16 +158,16 @@ async function copyLink() {
       linkCopied.value = false;
     }, 1500);
   } catch {
-    const ta = shareField.value;
-    if (ta) {
-      ta.focus();
-      ta.select();
+    const field = shareField.value;
+    if (field) {
+      field.focus();
+      field.select();
     }
   }
 }
 
 function selectAllShare(e: FocusEvent) {
-  (e.target as HTMLTextAreaElement).select();
+  (e.target as HTMLInputElement).select();
 }
 </script>
 
@@ -285,30 +285,29 @@ function selectAllShare(e: FocusEvent) {
     </p>
 
     <div class="det-section-title" style="margin-top: 24px">Share link</div>
-    <textarea
-      ref="shareField"
-      class="exp-field readonly"
-      readonly
-      rows="2"
-      :value="shareUrl"
-      placeholder="Save some papers to generate a shareable link."
-      @focus="selectAllShare"
-    />
-    <div class="exp-actions">
-      <button
-        class="btn primary"
-        :disabled="!shareUrl"
-        :class="{ disabled: !shareUrl }"
-        @click="copyLink"
-      >
-        {{ linkCopied ? "Copied ✓" : "Copy link" }}
-      </button>
-    </div>
+    <template v-if="shareUrl">
+      <div class="share-row">
+        <input
+          ref="shareField"
+          type="text"
+          class="share-url"
+          readonly
+          :value="shareUrl"
+          @focus="selectAllShare"
+        />
+        <button class="btn primary" type="button" @click="copyLink">
+          {{ linkCopied ? "Copied ✓" : "Copy link" }}
+        </button>
+      </div>
 
-    <div v-if="shareUrl" class="qr-card">
-      <QrCode :value="shareUrl" :size="220" />
-      <div class="qr-caption">Scan to import on another device</div>
-    </div>
+      <div class="qr-card">
+        <QrCode :value="shareUrl" :size="200" />
+        <div class="qr-caption">Or scan on another device</div>
+      </div>
+    </template>
+    <p v-else class="share-empty">
+      Save some papers to generate a shareable link.
+    </p>
 
     <details
       class="exp-details"
