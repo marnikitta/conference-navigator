@@ -4,6 +4,7 @@ import { usePapersStore } from "@/stores/papers";
 import Topbar from "@/components/Topbar.vue";
 import Tabs from "@/components/Tabs.vue";
 import AppFooter from "@/components/AppFooter.vue";
+import PwaUpdatePrompt from "@/components/PwaUpdatePrompt.vue";
 
 const papers = usePapersStore();
 const { loaded, loadError } = storeToRefs(papers);
@@ -28,5 +29,6 @@ const { loaded, loadError } = storeToRefs(papers);
       </keep-alive>
     </router-view>
     <AppFooter v-if="loaded" />
+    <PwaUpdatePrompt />
   </div>
 </template>
