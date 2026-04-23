@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watchEffect } from "vue";
 import { storeToRefs } from "pinia";
+import { useLocalStorage } from "@vueuse/core";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import { uniqueClusters } from "@/composables/usePapers";
@@ -21,15 +22,39 @@ interface Row {
   saved: number;
 }
 
+// Below this threshold the ranking tracks the live saved set. Once
+// crossed, we snapshot and stop reshuffling so the list is stable
+// enough to browse — drift is shown as a manual "refresh" action.
+const FREEZE_MIN_SAVED = 10;
+
+// Frozen snapshot of the saved IDs that produced the current ranking.
+// Persisted so the order doesn't reshuffle as the user keeps saving.
+const rankingSnapshot = useLocalStorage<string[]>("cn_saved_snapshot", []);
+const snapshotSet = computed(() => new Set(rankingSnapshot.value));
+const isFrozen = computed(() => rankingSnapshot.value.length > 0);
+
+// Seed once the saved set is large enough to be worth freezing. Imports
+// that land many IDs at once trip the same threshold and seed immediately.
+watchEffect(() => {
+  if (
+    rankingSnapshot.value.length === 0 &&
+    savedIds.value.size >= FREEZE_MIN_SAVED
+  ) {
+    rankingSnapshot.value = [...savedIds.value];
+  }
+});
+
 // Rank topics with the "clusters" strategy (LSE over leader-clusters
-// of the saved set) — matches the filter drawer, and unlike
-// "opinionated" has no jitter so the ordering is stable across visits.
-// Falls back to alphabetical when there's no saved signal yet.
+// of the saved set) — matches the filter drawer. Falls back to
+// alphabetical when there's no saved signal yet.
+const rankingSavedSet = computed<Set<string>>(() =>
+  isFrozen.value ? snapshotSet.value : savedIds.value,
+);
 const rankCtx = computed(() =>
   buildRankingContext(
     collectSavedVecs(
       papers.value,
-      (id) => savedIds.value.has(id),
+      (id) => rankingSavedSet.value.has(id),
       (p) => papersStore.vecFor(p),
     ),
     "clusters",
@@ -77,7 +102,22 @@ const rows = computed<Row[]>(() => {
   return scored.map(({ name, total, saved }) => ({ name, total, saved }));
 });
 
-const totalSaved = computed(() => savedIds.value.size);
+const rankedCount = computed(() =>
+  isFrozen.value ? rankingSnapshot.value.length : savedIds.value.size,
+);
+
+const isStale = computed(() => {
+  if (!isFrozen.value) return false;
+  const snap = snapshotSet.value;
+  const cur = savedIds.value;
+  if (snap.size !== cur.size) return true;
+  for (const id of cur) if (!snap.has(id)) return true;
+  return false;
+});
+
+function refreshRanking() {
+  rankingSnapshot.value = [...savedIds.value];
+}
 </script>
 
 <template>
@@ -86,14 +126,20 @@ const totalSaved = computed(() => savedIds.value.size);
     <h1 class="sitemap-title">Topic clusters</h1>
     <p class="sitemap-sub">
       <template v-if="rankCtx.active">
-        Sorted by similarity to your {{ totalSaved }} saved paper{{
-          totalSaved === 1 ? "" : "s"
+        Sorted by similarity to {{ rankedCount }} saved paper{{
+          rankedCount === 1 ? "" : "s"
         }}. Middle-click to open in a new tab.
       </template>
       <template v-else>
         Save some papers first and this list will re-rank by preference.
         Middle-click to open in a new tab.
       </template>
+    </p>
+    <p v-if="isStale" class="topics-stale">
+      Your saved list changed.
+      <button type="button" class="topics-stale-btn" @click="refreshRanking">
+        Refresh ranking
+      </button>
     </p>
     <ul class="sitemap-list">
       <li v-for="r in rows" :key="r.name">

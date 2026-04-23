@@ -197,31 +197,6 @@ function meanCosToCentroid(
   return s / slice.length;
 }
 
-// Top-K set overlap between two runs. Returns |A ∩ B|.
-function topKOverlap(a: Candidate[], b: Candidate[], k: number): number {
-  const setA = new Set(a.slice(0, k).map((c) => c.id));
-  let overlap = 0;
-  for (const c of b.slice(0, k)) if (setA.has(c.id)) overlap++;
-  return overlap;
-}
-
-// Average |rank_A − rank_B| for items present in both top-K lists.
-// Missing items don't count — pair with topKOverlap for a fuller picture.
-function avgRankShift(a: Candidate[], b: Candidate[], k: number): number {
-  const rankA = new Map<string, number>();
-  a.slice(0, k).forEach((c, i) => rankA.set(c.id, i));
-  let sum = 0;
-  let n = 0;
-  b.slice(0, k).forEach((c, i) => {
-    const r = rankA.get(c.id);
-    if (r !== undefined) {
-      sum += Math.abs(r - i);
-      n++;
-    }
-  });
-  return n > 0 ? sum / n : 0;
-}
-
 describe.skipIf(!process.env.RECO_DEBUG)("reco strategies (offline)", () => {
   it("compares strategies on the 40-save fixture", () => {
     const { all, byId } = loadCorpus();
@@ -353,67 +328,5 @@ describe.skipIf(!process.env.RECO_DEBUG)("reco strategies (offline)", () => {
         .sort((a, b) => b - a)
         .join(",")}`,
     );
-  }, 30_000);
-
-  it("sweeps noise ε to quantify run-to-run variation", () => {
-    const { all, byId } = loadCorpus();
-    const savedSet = new Set(SAVED_IDS);
-    const savedVecs: Float32Array[] = [];
-    for (const id of SAVED_IDS) {
-      const p = byId.get(id);
-      if (p) savedVecs.push(p.vec);
-    }
-    const candidates = all.filter((p) => !savedSet.has(p.id));
-    const clusters = clusterByLeader(
-      savedVecs.map((v, i) => ({ id: String(i), vec: v })),
-    );
-
-    // Run the opinionated strategy once with a given ε, assigning fresh
-    // per-candidate noise each invocation. Two invocations with the
-    // same ε should differ — that's the "see variations on reload" goal.
-    const opinionatedWithNoise = (eps: number): Candidate[] => {
-      const noise = new Map<string, number>();
-      const noiseFor = (id: string): number => {
-        let n = noise.get(id);
-        if (n === undefined) {
-          n = Math.random() - 0.5;
-          noise.set(id, n);
-        }
-        return n;
-      };
-      const rel = (c: Candidate) =>
-        rankingScoreFromClusters(c.vec, clusters, 0.3) +
-        0.8 * qualityPrior(c.rating) +
-        eps * noiseFor(c.id);
-      return mmrRerank(candidates, rel, 50, 200, 0.75);
-    };
-
-    const K = 50;
-    const epsilons = [0, 0.05, 0.1, 0.15, 0.25];
-    console.log(
-      `\nNoise sweep on the opinionated strategy (two fresh runs each, top ${K}):\n`,
-    );
-    console.log(
-      "ε     │ topics │ mean★ │ coh   │ overlap (A∩B) │ avg rank shift",
-    );
-    console.log(
-      "──────┼────────┼───────┼───────┼───────────────┼───────────────",
-    );
-    for (const eps of epsilons) {
-      const runA = opinionatedWithNoise(eps);
-      const runB = opinionatedWithNoise(eps);
-      const topics = distinctTopics(runA, K);
-      const mr = meanRating(runA, K);
-      const coh = meanCosToCentroid(
-        runA,
-        K,
-        centroid(savedVecs) ?? new Float32Array(),
-      );
-      const overlap = topKOverlap(runA, runB, K);
-      const shift = avgRankShift(runA, runB, K);
-      console.log(
-        `${eps.toFixed(2).padStart(5)} │ ${String(topics).padStart(6)} │ ${mr.toFixed(2).padStart(5)} │ ${coh.toFixed(3).padStart(5)} │ ${String(overlap).padStart(5)}/${K}        │ ${shift.toFixed(2).padStart(14)}`,
-      );
-    }
   }, 30_000);
 });

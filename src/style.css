@@ -1470,6 +1470,26 @@ a {
   font-size: 13px;
   white-space: nowrap;
 }
+.topics-stale {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: -12px 0 20px;
+}
+.topics-stale-btn {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+  margin-left: 4px;
+  font: inherit;
+}
+.topics-stale-btn:hover {
+  filter: brightness(1.1);
+}
 
 /* App footer */
 .app-footer {

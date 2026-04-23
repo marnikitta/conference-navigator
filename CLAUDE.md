@@ -86,6 +86,8 @@ strip only.
 The "reco" sort in `src/composables/useSimilarity.ts` is a three-stage
 pipeline (strategy name: `"opinionated"`, toggleable via
 `RANKING_STRATEGY`). Runs entirely in the browser on the saved set.
+Fully deterministic — no jitter, so repeat runs on the same saved set
+produce identical orderings.
 
 1. **Cluster-LSE relevance.** Saved papers are leader-clustered
    (`clusterByLeader`, cosine threshold 0.7). For each candidate we
@@ -100,11 +102,6 @@ pipeline (strategy name: `"opinionated"`, toggleable via
 3. **MMR diversification.** `mmrRerank` picks 120 items from the top
    250 by `λ · rel − (1−λ) · max cos-to-picked`, λ=0.75
    (OPINIONATED_LAMBDA / POOL / PICK). The tail is relevance-sorted.
-4. **Session-stable jitter.** ε=0.10 per-vec noise
-   (OPINIONATED_NOISE) cached in a module-level `WeakMap` keyed by
-   `Float32Array` identity. Filter/query/sort changes don't reshuffle
-   (same cache); page reload gives fresh noise (new embeddings Map →
-   new array instances).
 
 Rebuild is pinned to saved-set and embeddings changes (not
 filter/query/sort) via `watch(savedIds, snapshotRanking, { deep })`.
@@ -112,7 +109,20 @@ The pre-computed `rankOrder: Map<paperId, number>` is reused by every
 subsequent filter/query recompute, so scrolling and typing are free.
 A `RECO_DEBUG=1`-gated harness at `src/composables/reco.debug.test.ts`
 benchmarks strategies against a fixed 40-save fixture (diversity,
-mean rating, blocking simulation, noise-ε sweep).
+mean rating, blocking simulation).
+
+## Topic page freeze
+
+`TopicsPage` ranks topics by the "clusters" strategy against a frozen
+snapshot of saved IDs (localStorage key `cn_saved_snapshot`) so the
+list doesn't reshuffle under the user as they keep saving. The
+snapshot is seeded the first time `savedIds.size >= FREEZE_MIN_SAVED`
+(10); below that threshold the ranking tracks the live saved set.
+Once seeded, drift between snapshot and live saved is shown as a
+"Refresh ranking" banner that re-seeds on click. Correctness of the
+freeze relies on the ranking being deterministic given the snapshot
+IDs — don't reintroduce jitter into the clusters/opinionated
+strategies without first snapshotting the output order instead.
 
 Other sort modes are trivial sorts in `Explore.vue`. `FilterDrawer`
 explicitly uses strategy `"centroid"` to order the cluster filter

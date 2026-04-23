@@ -178,32 +178,6 @@ const OPINIONATED_PICK = 120;
 // clusters — softer boundaries, weaker dominant-cluster signal).
 const OPINIONATED_TAU = 0.3;
 
-// Jitter applied to the relevance score so repeat visits don't show the
-// identical feed. Noise is ε·(uniform − 0.5), so the shift per paper is
-// in [−ε/2, +ε/2]. With the opinionated score range ≈ 0.9, ε=0.10 is
-// about 6% of the span — enough to swap near-equal neighbours without
-// moving top picks noticeably. Stable across filter/query changes
-// within the same page session (see VEC_NOISE below).
-// Tune: 0.0–0.3. Presets: 0.00 deterministic (no shuffle across
-// reloads), 0.10 subtle (current), 0.20 chatty (top picks can swap).
-const OPINIONATED_NOISE = 0.1;
-
-// Per-vec noise cache, module-scoped and keyed by Float32Array
-// identity. `papersStore.vecFor(p)` returns the same object for a given
-// paper for the life of the page, so each paper keeps one noise value
-// across filter tweaks, query edits, and re-snapshots. A full page
-// reload starts a fresh cache (new embeddings Map → new Float32Array
-// instances), which is exactly when the user expects a different feed.
-const VEC_NOISE = new WeakMap<Float32Array, number>();
-function noiseForVec(vec: Float32Array): number {
-  let n = VEC_NOISE.get(vec);
-  if (n === undefined) {
-    n = Math.random() - 0.5;
-    VEC_NOISE.set(vec, n);
-  }
-  return n;
-}
-
 export interface RankingContext {
   /** Score an embedding against the saved signal. Higher = more relevant. */
   score: (vec: Float32Array | null | undefined) => number;
@@ -407,7 +381,7 @@ export function buildRankingContext(
         .map((c) => c.memberIds.length)
         .sort((a, b) => b - a);
       const total = sizes.reduce((a, b) => a + b, 0);
-      return `[reco:opinionated] τ=${tau}, γ=${gamma}, λ=${lambda}, ε=${OPINIONATED_NOISE}, pool=${poolSize}/pick=${pickK}; ${clusters.length} cluster${clusters.length === 1 ? "" : "s"} (sizes ${sizes.join(",")}) from ${total} saved`;
+      return `[reco:opinionated] τ=${tau}, γ=${gamma}, λ=${lambda}, pool=${poolSize}/pick=${pickK}; ${clusters.length} cluster${clusters.length === 1 ? "" : "s"} (sizes ${sizes.join(",")}) from ${total} saved`;
     },
     rerank: (candidates, vecOf, ratingOf) =>
       mmrRerank(
@@ -416,11 +390,7 @@ export function buildRankingContext(
         (c) => {
           const v = vecOf(c);
           if (!v) return -Infinity;
-          return (
-            relOfVec(v) +
-            gamma * qualityPrior(ratingOf(c)) +
-            OPINIONATED_NOISE * noiseForVec(v)
-          );
+          return relOfVec(v) + gamma * qualityPrior(ratingOf(c));
         },
         { k: pickK, poolSize, lambda },
       ),
