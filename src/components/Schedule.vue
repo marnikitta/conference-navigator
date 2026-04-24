@@ -16,10 +16,13 @@ const { scheduleDay: day } = storeToRefs(ui);
 const { papers, dayDefs } = storeToRefs(papersStore);
 const { idSet: savedIds } = storeToRefs(saved);
 
-// Default the active day to the first conference day as soon as data lands.
+// Default the active day to today if the conference is in session, else the first day.
 watchEffect(() => {
   if (!day.value && dayDefs.value.length) {
-    ui.setScheduleDay(dayDefs.value[0].date);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const match = dayDefs.value.find((d) => d.date === today);
+    ui.setScheduleDay(match?.date ?? dayDefs.value[0].date);
   }
 });
 
