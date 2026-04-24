@@ -8,15 +8,26 @@ export function groupBySession(papers: Paper[]): SessionGroup[] {
   const groups: Record<string, SessionGroup> = {};
   for (const p of papers) {
     const key = p.session || "Unscheduled";
-    if (!groups[key])
-      groups[key] = {
+    let g = groups[key];
+    if (!g) {
+      g = groups[key] = {
         session: key,
         papers: [],
         start: p.start,
         day: p.day,
         room: p.room,
+        start_ms: p.start_ms,
+        end_ms: p.end_ms,
       };
-    groups[key].papers.push(p);
+    } else {
+      if (p.start_ms != null)
+        g.start_ms =
+          g.start_ms == null ? p.start_ms : Math.min(g.start_ms, p.start_ms);
+      if (p.end_ms != null)
+        g.end_ms =
+          g.end_ms == null ? p.end_ms : Math.max(g.end_ms, p.end_ms);
+    }
+    g.papers.push(p);
   }
   return Object.values(groups).sort((a, b) =>
     (a.start || "").localeCompare(b.start || ""),
@@ -49,6 +60,8 @@ export interface SessionMeta {
   name: string;
   day: string | null;
   total: number;
+  start_ms: number | null;
+  end_ms: number | null;
 }
 
 /**
@@ -61,8 +74,25 @@ export function sessionsWithMeta(papers: Paper[]): SessionMeta[] {
   for (const p of papers) {
     if (!p.session) continue;
     const cur = metas.get(p.session);
-    if (cur) cur.total++;
-    else metas.set(p.session, { name: p.session, day: p.day, total: 1 });
+    if (cur) {
+      cur.total++;
+      if (p.start_ms != null)
+        cur.start_ms =
+          cur.start_ms == null
+            ? p.start_ms
+            : Math.min(cur.start_ms, p.start_ms);
+      if (p.end_ms != null)
+        cur.end_ms =
+          cur.end_ms == null ? p.end_ms : Math.max(cur.end_ms, p.end_ms);
+    } else {
+      metas.set(p.session, {
+        name: p.session,
+        day: p.day,
+        total: 1,
+        start_ms: p.start_ms,
+        end_ms: p.end_ms,
+      });
+    }
   }
   return Array.from(metas.values()).sort((a, b) => {
     const d = (a.day || "").localeCompare(b.day || "");

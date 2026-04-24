@@ -7,11 +7,13 @@ import { exploreUrl, useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import { groupBySession, tierText, tierClass } from "@/composables/usePapers";
+import { useNow, isLive } from "@/composables/useNow";
 import type { Day, Paper, SessionGroup } from "@/types";
 
 const ui = useUiStore();
 const papersStore = usePapersStore();
 const saved = useSavedStore();
+const now = useNow();
 const { scheduleDay: day } = storeToRefs(ui);
 const { papers, dayDefs } = storeToRefs(papersStore);
 const { idSet: savedIds } = storeToRefs(saved);
@@ -62,6 +64,10 @@ function timeLabelOf(group: SessionGroup): string {
   const first = group.papers[0];
   if (!first) return "";
   return `${first.start}–${first.end} · ${group.room || ""}`;
+}
+
+function liveNow(group: SessionGroup): boolean {
+  return isLive(group.start_ms, group.end_ms, now.value);
 }
 
 function doPrint() {
@@ -122,6 +128,12 @@ function sessionHref(sess: SessionGroup) {
                   class="sess-name sess-name-link"
                   :to="sessionHref(sess)"
                 >
+                  <span
+                    v-if="liveNow(sess)"
+                    class="live-dot"
+                    :title="'Happening now'"
+                    aria-label="Happening now"
+                  />
                   {{ sess.session }}
                 </router-link>
                 <div class="sess-time">{{ timeLabelOf(sess) }}</div>

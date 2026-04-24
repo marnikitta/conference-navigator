@@ -10,6 +10,7 @@ import {
   uniqueInsts,
   type SessionMeta,
 } from "@/composables/usePapers";
+import { useNow, isLive } from "@/composables/useNow";
 import {
   buildRankingContext,
   centroid,
@@ -25,6 +26,7 @@ const props = defineProps<{
 const ui = useUiStore();
 const papersStore = usePapersStore();
 const saved = useSavedStore();
+const now = useNow();
 const { filters } = storeToRefs(ui);
 const { dayDefs } = storeToRefs(papersStore);
 const { idSet: savedIds } = storeToRefs(saved);
@@ -221,6 +223,10 @@ function reset() {
 function close() {
   ui.closeFilterDrawer();
 }
+
+function sessionLive(s: SessionMeta): boolean {
+  return isLive(s.start_ms, s.end_ms, now.value);
+}
 </script>
 
 <template>
@@ -288,6 +294,12 @@ function close() {
               :class="{ on: isOn('sessions', s.name) }"
               @click="toggleOpt('sessions', s.name)"
             >
+              <span
+                v-if="sessionLive(s)"
+                class="live-dot"
+                :title="'Happening now'"
+                aria-label="Happening now"
+              />
               {{ s.name }}<span class="filt-count">{{ s.total }}</span>
             </button>
           </div>

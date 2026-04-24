@@ -88,6 +88,8 @@ export interface Paper {
   day: Day | null;
   start: string;
   end: string;
+  start_ms: number | null;
+  end_ms: number | null;
   rating: number | null;
   ratings: number[];
   tldr: string | null;
@@ -117,4 +119,6 @@ export interface SessionGroup {
   start: string;
   day: Day | null;
   room: string;
+  start_ms: number | null;
+  end_ms: number | null;
 }

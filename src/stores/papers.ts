@@ -26,6 +26,8 @@ function adaptPaper(raw: RawPaper): Paper {
   const start = pres.start_time || "";
   const end = pres.end_time || "";
   const date = start.slice(0, 10);
+  const startMs = start ? Date.parse(start) : NaN;
+  const endMs = end ? Date.parse(end) : NaN;
 
   return {
     id: raw.id,
@@ -47,6 +49,8 @@ function adaptPaper(raw: RawPaper): Paper {
     day: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
     start: start.slice(11, 16),
     end: end.slice(11, 16),
+    start_ms: Number.isFinite(startMs) ? startMs : null,
+    end_ms: Number.isFinite(endMs) ? endMs : null,
     rating: ratings.length ? mean(ratings) : null,
     ratings,
     tldr: or?.tldr ?? null,
