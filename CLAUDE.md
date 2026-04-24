@@ -185,6 +185,15 @@ Invariants:
 - `presentation.poster_position` is the raw string (e.g. `"P3-#1224"`);
   `Paper.poster_idx` is parsed from its trailing digits by
   `adaptPaper`.
+- `presentation.start_time` / `end_time` are ISO-8601 strings **with a
+  timezone offset** (e.g. `"2026-04-24T09:00:00-03:00"`). `adaptPaper`
+  parses them into `Date` objects on `Paper.start` / `Paper.end`; display
+  goes through `formatTime` in `composables/usePapers.ts`, which renders
+  in the conference timezone (`CONFERENCE_TZ = "America/Sao_Paulo"`) so
+  users see venue-local time regardless of their own locale. If the
+  offset is ever dropped upstream, parsing silently reinterprets as the
+  user's local time — see the matching contract in
+  `preprocessor/CLAUDE.md`.
 - Oral papers appear **twice** in `papers.json` — once as the
   Oral event (usually on an earlier day), once as the Poster sibling
   with the same title but different `id`. This is intentional: both

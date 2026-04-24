@@ -6,7 +6,12 @@ import { storeToRefs } from "pinia";
 import { exploreUrl, useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
-import { groupBySession, tierText, tierClass } from "@/composables/usePapers";
+import {
+  groupBySession,
+  tierText,
+  tierClass,
+  formatTime,
+} from "@/composables/usePapers";
 import { useNow, isLive } from "@/composables/useNow";
 import type { Day, Paper, SessionGroup } from "@/types";
 
@@ -63,11 +68,11 @@ const curDef = computed(() => papersStore.dayDef(day.value));
 function timeLabelOf(group: SessionGroup): string {
   const first = group.papers[0];
   if (!first) return "";
-  return `${first.start}–${first.end} · ${group.room || ""}`;
+  return `${formatTime(first.start)}–${formatTime(first.end)} · ${group.room || ""}`;
 }
 
 function liveNow(group: SessionGroup): boolean {
-  return isLive(group.start_ms, group.end_ms, now.value);
+  return isLive(group.start, group.end, now.value);
 }
 
 function doPrint() {

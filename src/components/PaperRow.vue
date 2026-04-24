@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
-import { tierText, tierClass } from "@/composables/usePapers";
+import { tierText, tierClass, formatTime } from "@/composables/usePapers";
 import type { Paper } from "@/types";
 
 const props = defineProps<{ paper: Paper }>();
@@ -64,7 +64,9 @@ function toggle() {
         </template>
         <span class="tier" :class="tierCls">{{ tierLabel }}</span>
         <span class="dot">·</span>
-        <span v-if="paper.day">{{ dayShort }} {{ paper.start }}</span>
+        <span v-if="paper.day"
+          >{{ dayShort }} {{ formatTime(paper.start) }}</span
+        >
         <template v-if="locationLabel">
           <span class="dot">·</span>
           <span :class="{ 'poster-pos': !!paper.poster_pos }">

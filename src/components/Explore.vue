@@ -178,9 +178,11 @@ const sorted = computed<Paper[]>(() => {
   } else if (s === "rating") {
     copy.sort((a, b) => (b.rating || 0) - (a.rating || 0));
   } else if (s === "time") {
-    copy.sort((a, b) =>
-      ((a.day || "") + a.start).localeCompare((b.day || "") + b.start),
-    );
+    copy.sort((a, b) => {
+      const ta = a.start?.getTime() ?? Number.POSITIVE_INFINITY;
+      const tb = b.start?.getTime() ?? Number.POSITIVE_INFINITY;
+      return ta - tb;
+    });
   } else if (s === "poster_id") {
     copy.sort((a, b) => (a.poster_idx ?? 99999) - (b.poster_idx ?? 99999));
   }

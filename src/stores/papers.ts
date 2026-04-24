@@ -16,6 +16,15 @@ function parsePosterIdx(pos: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// ISO timestamps ship with a timezone offset (enforced by the preprocessor —
+// see preprocessor/CLAUDE.md). `new Date(iso)` then yields an absolute moment,
+// safe to compare against `new Date()` regardless of the user's local TZ.
+function parseMoment(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function adaptPaper(raw: RawPaper): Paper {
   const pres = raw.presentation || {};
   const mats = raw.materials || {};
@@ -23,11 +32,11 @@ function adaptPaper(raw: RawPaper): Paper {
   const meta = raw.metadata || {};
   const ratings = or?.ratings ?? [];
 
-  const start = pres.start_time || "";
-  const end = pres.end_time || "";
-  const date = start.slice(0, 10);
-  const startMs = start ? Date.parse(start) : NaN;
-  const endMs = end ? Date.parse(end) : NaN;
+  const startIso = pres.start_time || "";
+  const endIso = pres.end_time || "";
+  const date = startIso.slice(0, 10);
+  const start = parseMoment(startIso);
+  const end = parseMoment(endIso);
 
   return {
     id: raw.id,
@@ -47,10 +56,8 @@ function adaptPaper(raw: RawPaper): Paper {
     poster_pos: pres.poster_position || null,
     poster_idx: parsePosterIdx(pres.poster_position),
     day: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
-    start: start.slice(11, 16),
-    end: end.slice(11, 16),
-    start_ms: Number.isFinite(startMs) ? startMs : null,
-    end_ms: Number.isFinite(endMs) ? endMs : null,
+    start,
+    end,
     rating: ratings.length ? mean(ratings) : null,
     ratings,
     tldr: or?.tldr ?? null,

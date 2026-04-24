@@ -4,6 +4,33 @@ export function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
+// Conference venue timezone. ICLR 2026 is in Rio de Janeiro; we render all
+// session times in this TZ so that the "09:00" a user sees matches the wall
+// clock at the venue regardless of where they are physically.
+export const CONFERENCE_TZ = "America/Sao_Paulo";
+
+const timeFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: CONFERENCE_TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+export function formatTime(d: Date | null | undefined): string {
+  return d ? timeFmt.format(d) : "";
+}
+
+function earliest(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a < b ? a : b;
+}
+function latest(a: Date | null, b: Date | null): Date | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a > b ? a : b;
+}
+
 export function groupBySession(papers: Paper[]): SessionGroup[] {
   const groups: Record<string, SessionGroup> = {};
   for (const p of papers) {
@@ -14,24 +41,21 @@ export function groupBySession(papers: Paper[]): SessionGroup[] {
         session: key,
         papers: [],
         start: p.start,
+        end: p.end,
         day: p.day,
         room: p.room,
-        start_ms: p.start_ms,
-        end_ms: p.end_ms,
       };
     } else {
-      if (p.start_ms != null)
-        g.start_ms =
-          g.start_ms == null ? p.start_ms : Math.min(g.start_ms, p.start_ms);
-      if (p.end_ms != null)
-        g.end_ms =
-          g.end_ms == null ? p.end_ms : Math.max(g.end_ms, p.end_ms);
+      g.start = earliest(g.start, p.start);
+      g.end = latest(g.end, p.end);
     }
     g.papers.push(p);
   }
-  return Object.values(groups).sort((a, b) =>
-    (a.start || "").localeCompare(b.start || ""),
-  );
+  return Object.values(groups).sort((a, b) => {
+    const ta = a.start?.getTime() ?? Number.POSITIVE_INFINITY;
+    const tb = b.start?.getTime() ?? Number.POSITIVE_INFINITY;
+    return ta - tb;
+  });
 }
 
 export function uniqueClusters(papers: Paper[]): string[] {
@@ -60,8 +84,8 @@ export interface SessionMeta {
   name: string;
   day: string | null;
   total: number;
-  start_ms: number | null;
-  end_ms: number | null;
+  start: Date | null;
+  end: Date | null;
 }
 
 /**
@@ -76,21 +100,15 @@ export function sessionsWithMeta(papers: Paper[]): SessionMeta[] {
     const cur = metas.get(p.session);
     if (cur) {
       cur.total++;
-      if (p.start_ms != null)
-        cur.start_ms =
-          cur.start_ms == null
-            ? p.start_ms
-            : Math.min(cur.start_ms, p.start_ms);
-      if (p.end_ms != null)
-        cur.end_ms =
-          cur.end_ms == null ? p.end_ms : Math.max(cur.end_ms, p.end_ms);
+      cur.start = earliest(cur.start, p.start);
+      cur.end = latest(cur.end, p.end);
     } else {
       metas.set(p.session, {
         name: p.session,
         day: p.day,
         total: 1,
-        start_ms: p.start_ms,
-        end_ms: p.end_ms,
+        start: p.start,
+        end: p.end,
       });
     }
   }

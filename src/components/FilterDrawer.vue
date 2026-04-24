@@ -225,7 +225,7 @@ function close() {
 }
 
 function sessionLive(s: SessionMeta): boolean {
-  return isLive(s.start_ms, s.end_ms, now.value);
+  return isLive(s.start, s.end, now.value);
 }
 </script>
 

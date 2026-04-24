@@ -86,10 +86,8 @@ export interface Paper {
   poster_pos: string | null;
   poster_idx: number | null;
   day: Day | null;
-  start: string;
-  end: string;
-  start_ms: number | null;
-  end_ms: number | null;
+  start: Date | null;
+  end: Date | null;
   rating: number | null;
   ratings: number[];
   tldr: string | null;
@@ -116,9 +114,8 @@ export interface Filters {
 export interface SessionGroup {
   session: string;
   papers: Paper[];
-  start: string;
+  start: Date | null;
+  end: Date | null;
   day: Day | null;
   room: string;
-  start_ms: number | null;
-  end_ms: number | null;
 }

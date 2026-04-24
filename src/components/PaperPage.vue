@@ -6,7 +6,7 @@ import { exploreUrl, useUiStore } from "@/stores/ui";
 import { usePapersStore } from "@/stores/papers";
 import { useSavedStore } from "@/stores/saved";
 import { topKSimilar, type SimilarHit } from "@/composables/useSimilarity";
-import { tierText } from "@/composables/usePapers";
+import { tierText, formatTime } from "@/composables/usePapers";
 import type { Paper } from "@/types";
 
 const route = useRoute();
@@ -34,7 +34,7 @@ const whenLabel = computed(() => {
   const p = paper.value;
   if (!p || !p.day) return "";
   const long = papersStore.dayDef(p.day)?.long || p.day;
-  return `${long} · ${p.start}–${p.end}`;
+  return `${long} · ${formatTime(p.start)}–${formatTime(p.end)}`;
 });
 
 const whereLabel = computed(() => {
@@ -246,7 +246,7 @@ function toggle() {
             <template v-if="hit.paper.day">
               ·
               {{ papersStore.dayDef(hit.paper.day)?.short || hit.paper.day }}
-              {{ hit.paper.start }}
+              {{ formatTime(hit.paper.start) }}
             </template>
             <template v-if="hit.paper.poster_pos || hit.paper.room">
               · {{ hit.paper.poster_pos || hit.paper.room }}
